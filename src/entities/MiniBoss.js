@@ -2,6 +2,7 @@
  * MiniBoss entity class
  */
 import { Entity } from './Entity.js';
+import * as THREE from 'three';
 
 export class MiniBoss extends Entity {
     constructor(engine, options = {}) {
@@ -41,10 +42,16 @@ export class MiniBoss extends Entity {
         this.object3D.position.y = 0.01; // Just above ground
         
         // Create a collision body for the boss
-        this.object3D.userData.collider = {
-            radius: 1.2,  // Boss collision radius (larger than enemies)
-            height: 3.0   // Boss collision height
-        };
+        if (this.object3D && !this.object3D.userData) {
+            this.object3D.userData = {};
+        }
+        
+        if (this.object3D && this.object3D.userData) {
+            this.object3D.userData.collider = {
+                radius: 1.2,  // Boss collision radius (larger than enemies)
+                height: 3.0   // Boss collision height
+            };
+        }
     }
     
     /**

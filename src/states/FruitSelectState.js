@@ -2,6 +2,7 @@
  * Fruit selection state
  */
 import { BaseState } from './BaseState.js';
+import * as THREE from 'three';
 
 export class FruitSelectState extends BaseState {
     constructor(engine) {

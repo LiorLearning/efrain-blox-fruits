@@ -2,6 +2,7 @@
  * Enemy entity class
  */
 import { Entity } from './Entity.js';
+import * as THREE from 'three';
 
 export class Enemy extends Entity {
     constructor(engine, options = {}) {
@@ -33,6 +34,11 @@ export class Enemy extends Entity {
         
         // Set initial position
         this.object3D.position.y = 0.01; // Just above ground
+        
+        // Ensure userData exists
+        if (!this.object3D.userData) {
+            this.object3D.userData = {};
+        }
         
         // Create a collision body for the enemy
         this.object3D.userData.collider = {

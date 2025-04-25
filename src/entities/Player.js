@@ -2,6 +2,7 @@
  * Player entity class
  */
 import { Entity } from './Entity.js';
+import * as THREE from 'three';
 
 export class Player extends Entity {
     constructor(engine, options = {}) {
@@ -39,6 +40,11 @@ export class Player extends Entity {
         
         // Set initial position
         this.object3D.position.y = 0.01; // Just above ground
+        
+        // Ensure userData exists
+        if (!this.object3D.userData) {
+            this.object3D.userData = {};
+        }
         
         // Create a collision body for the player
         this.object3D.userData.collider = {

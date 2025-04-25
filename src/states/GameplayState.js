@@ -5,6 +5,7 @@ import { BaseState } from './BaseState.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { MiniBoss } from '../entities/MiniBoss.js';
+import * as THREE from 'three';
 
 export class GameplayState extends BaseState {
     constructor(engine) {
@@ -488,21 +489,22 @@ export class GameplayState extends BaseState {
         if (!playerPosition) return;
         
         // Calculate target camera position
-        const targetPosition = new THREE.Vector3(
+        const targetVector = new THREE.Vector3(
             playerPosition.x + offsetX,
             playerPosition.y + offsetY,
             playerPosition.z + offsetZ
         );
         
         // Smoothly move camera (lower value = slower camera)
-        camera.position.lerp(targetPosition, 0.05);
+        camera.position.lerp(targetVector, 0.05);
         
         // Look at player's position with slight offset for better view
-        camera.lookAt(
+        const lookAtPosition = new THREE.Vector3(
             playerPosition.x,
             playerPosition.y + 1, // Look slightly above player's feet
             playerPosition.z
         );
+        camera.lookAt(lookAtPosition);
     }
     
     /**

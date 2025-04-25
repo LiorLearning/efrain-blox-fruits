@@ -1,6 +1,8 @@
 /**
  * Base entity class for all game entities
  */
+import * as THREE from 'three';
+
 export class Entity {
     constructor(engine) {
         this.engine = engine;
@@ -44,7 +46,7 @@ export class Entity {
      * Get entity position
      */
     getPosition() {
-        if (this.object3D) {
+        if (this.object3D && this.object3D.position) {
             return this.object3D.position.clone();
         }
         return null;

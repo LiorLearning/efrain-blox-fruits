@@ -1,6 +1,9 @@
 /**
  * Renderer class for handling Three.js rendering
  */
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
 export class Renderer {
   constructor(canvas, config) {
       this.canvas = canvas;
@@ -76,12 +79,10 @@ export class Renderer {
       
       this.scene.add(directionalLight);
       
-      // Create orbit controls for development/testing
-      if (window.THREE && THREE.OrbitControls) {
-          this.controls = new THREE.OrbitControls(this.camera, this.canvas);
-          this.controls.enableDamping = true;
-          this.controls.dampingFactor = 0.05;
-      }
+      // Create orbit controls
+      this.controls = new OrbitControls(this.camera, this.canvas);
+      this.controls.enableDamping = true;
+      this.controls.dampingFactor = 0.05;
       
       console.log('Three.js renderer initialized');
   }

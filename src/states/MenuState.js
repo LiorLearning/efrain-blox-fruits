@@ -2,6 +2,7 @@
  * Main menu state
  */
 import { BaseState } from './BaseState.js';
+import * as THREE from 'three';
 
 export class MenuState extends BaseState {
     constructor(engine) {
