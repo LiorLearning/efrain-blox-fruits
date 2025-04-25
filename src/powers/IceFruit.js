@@ -10,8 +10,8 @@ export class IceFruit extends Fruit {
         const iceOptions = {
             name: options.name || 'Ice Fruit',
             type: 'ice',
-            power: options.power || 8,
-            attacks: options.attacks || ['Ice Spike', 'Freeze', 'Blizzard'],
+            power: options.power || 15,
+            attacks: ['Ice Spike', 'Ice Wall', 'Blizzard'],
             ...options
         };
         
@@ -76,60 +76,95 @@ export class IceFruit extends Fruit {
     }
     
     /**
-     * Use a special attack - Freeze
+     * Use a special attack - Ice Wall
      */
     useSpecialAttack(position, direction) {
-        if (this.isOnCooldown('Freeze')) {
-            console.log('Freeze is on cooldown');
+        if (this.isOnCooldown('Ice Wall')) {
+            console.log('Ice Wall is on cooldown');
             return false;
         }
         
-        // Create a freezing wave
-        const freezeRadius = 5;
-        const freezeEffect = this.createAreaEffect(position, {
-            radius: freezeRadius,
-            color: 0x88ccff,
-            damage: this.power * 0.6,
-            lifetime: 1.5,
-            type: 'freeze'
+        // Create a defensive ice wall perpendicular to direction
+        const wallWidth = 6;
+        const wallHeight = 3;
+        const wallDepth = 0.5;
+        
+        // Calculate wall orientation - perpendicular to direction vector
+        const perpendicularDirection = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+        
+        // Create the wall mesh
+        const wallGeometry = new THREE.BoxGeometry(wallWidth, wallHeight, wallDepth);
+        const wallMaterial = new THREE.MeshBasicMaterial({
+            color: 0x88ceff,
+            transparent: true,
+            opacity: 0.6
         });
         
-        if (freezeEffect) {
-            // Create ice crystals in the area
-            const crystalCount = 12;
-            for (let i = 0; i < crystalCount; i++) {
-                const angle = (i / crystalCount) * Math.PI * 2;
-                const radius = Math.random() * freezeRadius * 0.8;
-                const crystalPos = new THREE.Vector3(
-                    position.x + Math.cos(angle) * radius,
-                    position.y,
-                    position.z + Math.sin(angle) * radius
-                );
+        const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+        
+        // Position wall in front of player
+        const wallPosition = new THREE.Vector3(
+            position.x + direction.x * 3,
+            position.y + wallHeight / 2,
+            position.z + direction.z * 3
+        );
+        wall.position.copy(wallPosition);
+        
+        // Orient wall perpendicular to player's direction
+        const angle = Math.atan2(direction.x, direction.z);
+        wall.rotation.y = angle;
+        
+        // Add to scene
+        this.engine.renderer.scene.add(wall);
+        
+        // Add wall data
+        wall.userData = {
+            type: 'iceWall',
+            source: 'player',
+            damage: 0, // Wall doesn't directly deal damage
+            lifetime: 5, // seconds
+            currentLifetime: 0,
+            update: function(deltaTime) {
+                // Update lifetime
+                this.userData.currentLifetime += deltaTime;
                 
-                // Create an ice crystal
-                const crystalGeometry = new THREE.ConeGeometry(0.2, Math.random() * 1 + 0.5, 5);
-                const crystalMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xadefff,
-                    transparent: true,
-                    opacity: 0.8
-                });
-                const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
-                crystal.position.copy(crystalPos);
-                crystal.rotation.x = Math.PI / 2; // Point upward
-                crystal.rotation.z = Math.random() * Math.PI; // Random rotation
+                // Add ice particles occasionally for effect
+                if (Math.random() < 0.1) {
+                    const edgeOffset = (Math.random() - 0.5) * wallWidth;
+                    const heightOffset = Math.random() * wallHeight;
+                    
+                    const particlePos = this.position.clone();
+                    particlePos.x += edgeOffset * Math.cos(this.rotation.y);
+                    particlePos.z += edgeOffset * Math.sin(this.rotation.y);
+                    particlePos.y = heightOffset;
+                    
+                    this.engine._createIceParticle(particlePos);
+                }
                 
-                // Add crystal to the effect
-                freezeEffect.add(crystal);
-            }
-            
-            // Add a light source
-            const light = new THREE.PointLight(0xadefff, 1, 10);
-            light.position.y = 2;
-            freezeEffect.add(light);
-        }
+                // Fade out near end of lifetime
+                const remainingLife = this.userData.lifetime - this.userData.currentLifetime;
+                if (remainingLife < 1) {
+                    this.material.opacity = remainingLife * 0.6;
+                }
+                
+                // Destroy if lifetime is exceeded
+                if (this.userData.currentLifetime >= this.userData.lifetime) {
+                    this.engine.renderer.scene.remove(this);
+                    this.geometry.dispose();
+                    this.material.dispose();
+                    return false;
+                }
+                
+                return true;
+            }.bind(wall)
+        };
+        
+        // Store engine reference for particle effects
+        wall.engine = this;
         
         // Set cooldown
-        this.cooldowns['Freeze'] = 6; // 6 second cooldown
+        this.cooldowns['Ice Wall'] = 8; // 8 second cooldown
+        this.cooldowns['special'] = 8; // General special attack cooldown
         
         return true;
     }
@@ -143,167 +178,98 @@ export class IceFruit extends Fruit {
             return false;
         }
         
-        // Create a massive blizzard effect
+        // Create a large area effect of ice damage
         const blizzard = this.createAreaEffect(position, {
             radius: 12,
             color: 0x88ccff,
-            damage: this.power * 1.5,
-            lifetime: 5,
+            damage: this.power * 2,
+            lifetime: 6,
             type: 'blizzard'
         });
         
-        if (blizzard) {
-            // Add a light source
-            const light = new THREE.PointLight(0xadefff, 1.5, 18);
-            light.position.y = 5;
-            blizzard.add(light);
-            
-            // Add update handler for spawning snowflakes
-            const originalUpdate = blizzard.userData.update;
-            blizzard.userData.update = function(deltaTime) {
-                // Call the original update
-                const result = originalUpdate(deltaTime);
-                
-                // Create snowflakes
-                for (let i = 0; i < 3; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const radius = Math.random() * 12;
-                    const snowPos = new THREE.Vector3(
-                        blizzard.position.x + Math.cos(angle) * radius,
-                        blizzard.position.y + 5 + Math.random() * 3, // Start above
-                        blizzard.position.z + Math.sin(angle) * radius
-                    );
-                    this._createSnowflake(snowPos);
-                }
-                
-                return result;
-            }.bind(this);
-        }
-        
         // Set cooldown
-        this.cooldowns['Blizzard'] = 20; // 20 second cooldown
+        this.cooldowns['Blizzard'] = 25; // 25 second cooldown
         
         return true;
     }
     
     /**
-     * Create an ice particle effect
+     * Create an ice particle for effects
      */
     _createIceParticle(position) {
-        const scene = this.engine.renderer.scene;
-        if (!scene) return null;
+        // Slightly randomize position
+        position.x += (Math.random() - 0.5) * 0.2;
+        position.y += (Math.random() - 0.5) * 0.2;
+        position.z += (Math.random() - 0.5) * 0.2;
         
-        // Create a small ice particle
-        const geometry = new THREE.OctahedronGeometry(0.15, 0);
+        // Create ice crystal particle
+        const geometry = new THREE.TetrahedronGeometry(0.15);
         const material = new THREE.MeshBasicMaterial({
-            color: 0xadefff,
+            color: 0xccffff,
             transparent: true,
-            opacity: 0.7
+            opacity: 0.8
         });
         
         const particle = new THREE.Mesh(geometry, material);
         particle.position.copy(position);
         
-        // Add some random rotation
-        particle.rotation.x = Math.random() * Math.PI;
-        particle.rotation.y = Math.random() * Math.PI;
-        particle.rotation.z = Math.random() * Math.PI;
-        
-        // Add data for update
-        particle.userData = {
-            lifetime: Math.random() * 0.5 + 0.3,
-            currentLifetime: 0,
-            update: function(deltaTime) {
-                // Slow fade out
-                const lifeRatio = this.userData.currentLifetime / this.userData.lifetime;
-                this.material.opacity = 0.7 * (1 - lifeRatio);
-                
-                // Update lifetime
-                this.userData.currentLifetime += deltaTime;
-                
-                // Destroy if lifetime is exceeded
-                if (this.userData.currentLifetime >= this.userData.lifetime) {
-                    scene.remove(this);
-                    return false;
-                }
-                
-                return true;
-            }.bind(particle)
-        };
+        // Random rotation
+        particle.rotation.x = Math.random() * Math.PI * 2;
+        particle.rotation.y = Math.random() * Math.PI * 2;
+        particle.rotation.z = Math.random() * Math.PI * 2;
         
         // Add to scene
-        scene.add(particle);
+        this.engine.renderer.scene.add(particle);
         
-        // Keep track of all effects to update them
-        if (!this.engine.effectsToUpdate) {
-            this.engine.effectsToUpdate = [];
-        }
-        this.engine.effectsToUpdate.push(particle);
+        // Animate the particle
+        const lifetime = 0.8 + Math.random() * 0.7; // 0.8-1.5 seconds
+        const startTime = Date.now();
+        const duration = lifetime * 1000; // Convert to milliseconds
         
-        return particle;
-    }
-    
-    /**
-     * Create a snowflake effect for blizzard
-     */
-    _createSnowflake(position) {
-        const scene = this.engine.renderer.scene;
-        if (!scene) return null;
+        // Slow falling movement
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.2, // Small random x movement
+            -0.1 - Math.random() * 0.2,  // Slow downward movement
+            (Math.random() - 0.5) * 0.2  // Small random z movement
+        );
         
-        // Create a small snowflake
-        const size = Math.random() * 0.1 + 0.05;
-        const geometry = new THREE.CircleGeometry(size, 6);
-        const material = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.7
-        });
-        
-        const snowflake = new THREE.Mesh(geometry, material);
-        snowflake.position.copy(position);
-        
-        // Make sure snowflake faces camera
-        snowflake.rotation.x = -Math.PI / 2;
-        
-        // Add data for update
-        snowflake.userData = {
-            velocity: new THREE.Vector3(
-                (Math.random() - 0.5) * 2,
-                -(Math.random() * 2 + 1), // Fall downward
-                (Math.random() - 0.5) * 2
-            ),
-            rotationSpeed: Math.random() * 5,
-            lifetime: Math.random() * 2 + 1,
-            currentLifetime: 0,
-            update: function(deltaTime) {
-                // Move downward with some drift
-                this.position.add(this.userData.velocity.clone().multiplyScalar(deltaTime));
-                
-                // Rotate snowflake
-                this.rotation.z += this.userData.rotationSpeed * deltaTime;
-                
-                // Update lifetime
-                this.userData.currentLifetime += deltaTime;
-                
-                // Destroy if lifetime is exceeded or if it hits the ground
-                if (this.userData.currentLifetime >= this.userData.lifetime || this.position.y <= 0.1) {
-                    scene.remove(this);
-                    return false;
-                }
-                
-                return true;
-            }.bind(snowflake)
+        // Spin rates
+        const spinRate = {
+            x: (Math.random() - 0.5) * 0.05,
+            y: (Math.random() - 0.5) * 0.05,
+            z: (Math.random() - 0.5) * 0.05
         };
         
-        // Add to scene
-        scene.add(snowflake);
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
+            
+            if (progress < 1) {
+                // Move slowly
+                particle.position.x += velocity.x * 0.01;
+                particle.position.y += velocity.y * 0.01;
+                particle.position.z += velocity.z * 0.01;
+                
+                // Rotate slowly
+                particle.rotation.x += spinRate.x;
+                particle.rotation.y += spinRate.y;
+                particle.rotation.z += spinRate.z;
+                
+                // Fade out at the end
+                if (progress > 0.7) {
+                    particle.material.opacity = 0.8 * (1 - ((progress - 0.7) / 0.3));
+                }
+                
+                requestAnimationFrame(animate);
+            } else {
+                // Remove when animation is complete
+                this.engine.renderer.scene.remove(particle);
+                particle.geometry.dispose();
+                particle.material.dispose();
+            }
+        };
         
-        // Keep track of all effects to update them
-        if (!this.engine.effectsToUpdate) {
-            this.engine.effectsToUpdate = [];
-        }
-        this.engine.effectsToUpdate.push(snowflake);
-        
-        return snowflake;
+        // Start animation
+        animate();
     }
 }

@@ -196,15 +196,17 @@ export class GameplayState extends BaseState {
     }
     
     /**
-     * Set up camera to follow player in isometric view
+     * Set up camera in fixed isometric view
      */
     setupCamera() {
-        // Set camera position for isometric view
+        // Set camera position for fixed isometric view
         const camera = this.engine.renderer.camera;
         
-        // Position camera for isometric view (positioned diagonally above the player)
-        camera.position.set(15, 15, 15);
-        camera.lookAt(0, 0, 0); // Look at the center of the scene
+        // Position camera for true isometric view at a fixed distance
+        camera.position.set(20, 20, 20);
+        
+        // Look at center of the island
+        camera.lookAt(0, 0, 0);
         
         // Adjust camera settings
         camera.fov = 45; // Narrower field of view for more isometric look
@@ -239,11 +241,9 @@ export class GameplayState extends BaseState {
             <div class="game-controls">
                 <div class="controls-info">
                     <p>WASD or Arrow Keys: Move</p>
-                    <p>Space: Jump</p>
+                    <p>Space: Use Fruit Attack</p>
                     <p>1-5: Select Fruit</p>
-                    <p>Left Click: Basic Attack</p>
-                    <p>Right Click: Special Attack</p>
-                    <p>Shift + Click: Ultimate Attack</p>
+                    <p>Mouse to Edge: Pan Camera</p>
                 </div>
             </div>
         `;
@@ -405,10 +405,10 @@ export class GameplayState extends BaseState {
             this.boss = null;
         }
         
-        // Create some regular enemies at random positions around the island
+        // Create some regular enemies at positions closer to the center of the island
         for (let i = 0; i < 3; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const radius = 10 + Math.random() * 15; // Random position on the island
+            const radius = 8 + Math.random() * 10; // Reduced radius to bring enemies closer
             
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
@@ -422,7 +422,7 @@ export class GameplayState extends BaseState {
             this.enemies.push(enemy);
         }
         
-        // Create a boss at the far end of the island
+        // Create a boss at the far end of the island, but not too far
         this.boss = new MiniBoss(this.engine, {
             name: 'Island Boss',
             health: 200,
@@ -433,8 +433,8 @@ export class GameplayState extends BaseState {
             ]
         });
         
-        // Position the boss at the far end of the island
-        this.boss.setPosition(0, 0, -25);
+        // Position the boss closer to the player
+        this.boss.setPosition(0, 0, -18);
     }
 
     /**
@@ -458,6 +458,166 @@ export class GameplayState extends BaseState {
         
         // Update camera to follow player
         this.updateCamera();
+        
+        // Check for projectile collisions
+        this.detectProjectileCollisions();
+    }
+    
+    /**
+     * Detect collisions between projectiles and enemies
+     */
+    detectProjectileCollisions() {
+        const scene = this.engine.renderer.scene;
+        if (!scene) return;
+        
+        // Get all projectiles in the scene
+        const projectiles = [];
+        scene.traverse((object) => {
+            if (object.userData && 
+                object.userData.type && 
+                (object.userData.type === 'projectile' || 
+                 object.userData.type === 'fireball' || 
+                 object.userData.type === 'iceSpike' || 
+                 object.userData.type === 'lightBeam')) {
+                projectiles.push(object);
+            }
+        });
+        
+        // Get all enemies including boss
+        const enemies = [...this.enemies];
+        if (this.boss) {
+            enemies.push(this.boss);
+        }
+        
+        // Check each projectile against each enemy
+        projectiles.forEach(projectile => {
+            // Skip non-player projectiles
+            if (projectile.userData.source !== 'player') return;
+            
+            // Get projectile position
+            const projectilePos = projectile.position;
+            
+            // Check against each enemy
+            enemies.forEach(enemy => {
+                // Skip inactive enemies
+                if (!enemy || !enemy.isActive) return;
+                
+                // Get enemy position
+                const enemyPos = enemy.getPosition();
+                if (!enemyPos) return;
+                
+                // Calculate distance between projectile and enemy
+                const distance = Math.sqrt(
+                    Math.pow(projectilePos.x - enemyPos.x, 2) + 
+                    Math.pow(projectilePos.z - enemyPos.z, 2)
+                );
+                
+                // Get enemy collision radius
+                const enemyRadius = enemy.object3D && enemy.object3D.userData && 
+                                  enemy.object3D.userData.collider ? 
+                                  enemy.object3D.userData.collider.radius : 0.7;
+                
+                // Get projectile collision radius
+                const projectileRadius = 0.5; // Default projectile radius
+                
+                // Check for collision
+                if (distance < enemyRadius + projectileRadius) {
+                    // Collision detected!
+                    
+                    // Deal damage to enemy
+                    enemy.takeDamage(projectile.userData.damage);
+                    
+                    // Special effects based on projectile type
+                    this.createHitEffect(projectile, enemy);
+                    
+                    // Remove the projectile
+                    scene.remove(projectile);
+                    
+                    // Clean up geometries and materials
+                    projectile.traverse((object) => {
+                        if (object.geometry) {
+                            object.geometry.dispose();
+                        }
+                        if (object.material) {
+                            if (Array.isArray(object.material)) {
+                                object.material.forEach(material => material.dispose());
+                            } else {
+                                object.material.dispose();
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    }
+    
+    /**
+     * Create visual effect when projectile hits enemy
+     */
+    createHitEffect(projectile, enemy) {
+        // Get hit position (enemy position at hit time)
+        const enemyPos = enemy.getPosition();
+        if (!enemyPos) return;
+        
+        // Get projectile type
+        const projectileType = projectile.userData.type;
+        
+        // Create hit effect based on projectile type
+        let color = 0xffffff; // Default color
+        
+        switch(projectileType) {
+            case 'fireball':
+                color = 0xff4400; // Orange/red for flame
+                break;
+            case 'iceSpike':
+                color = 0x00ddff; // Light blue for ice
+                break;
+            case 'lightBeam':
+                color = 0xffff00; // Yellow for light
+                break;
+            case 'bombFragment':
+                color = 0x888888; // Gray for bomb
+                break;
+        }
+        
+        // Create a flash effect at the hit position
+        const geometry = new THREE.SphereGeometry(1.0, 8, 8);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: color,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        const hitEffect = new THREE.Mesh(geometry, material);
+        hitEffect.position.set(enemyPos.x, enemyPos.y + 1.0, enemyPos.z); // At enemy center
+        
+        // Add to scene
+        this.engine.renderer.scene.add(hitEffect);
+        
+        // Animate the hit effect
+        const startTime = Date.now();
+        const duration = 300; // ms
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Scale up and fade out
+            hitEffect.scale.set(1 + progress * 1.5, 1 + progress * 1.5, 1 + progress * 1.5);
+            hitEffect.material.opacity = 0.8 * (1 - progress);
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Remove effect when animation is complete
+                this.engine.renderer.scene.remove(hitEffect);
+                hitEffect.geometry.dispose();
+                hitEffect.material.dispose();
+            }
+        };
+        
+        // Start animation
+        animate();
     }
     
     /**
@@ -471,40 +631,64 @@ export class GameplayState extends BaseState {
     }
     
     /**
-     * Update camera to follow player in isometric view
+     * Update camera for isometric view with mouse control for navigation
      */
     updateCamera() {
         if (!this.player) return;
         
         const camera = this.engine.renderer.camera;
-        
-        // Calculate isometric camera position relative to player
-        // This maintains a fixed angle isometric view while following the player
-        const offsetX = 15;
-        const offsetY = 15;
-        const offsetZ = 15;
+        const input = this.engine.input;
         
         // Get player position
         const playerPosition = this.player.getPosition();
         if (!playerPosition) return;
         
-        // Calculate target camera position
-        const targetVector = new THREE.Vector3(
-            playerPosition.x + offsetX,
-            playerPosition.y + offsetY,
-            playerPosition.z + offsetZ
+        // Initialize camera offset if not set
+        if (!this.cameraOffset) {
+            this.cameraOffset = { x: 0, z: 0 };
+        }
+        
+        // Mouse-based camera panning
+        // Only when mouse is at screen edges
+        const mousePos = input.getMousePosition();
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        
+        // Mouse edges detection for map navigation (edge panning)
+        const edgeThreshold = 50; // pixels from the edge
+        const panSpeed = 0.2 * this.engine.time.deltaTime;
+        
+        // Panning at screen edges
+        if (mousePos.x < edgeThreshold) {
+            // Left edge
+            this.cameraOffset.x -= panSpeed;
+        } else if (mousePos.x > screenWidth - edgeThreshold) {
+            // Right edge
+            this.cameraOffset.x += panSpeed;
+        }
+        
+        if (mousePos.y < edgeThreshold) {
+            // Top edge
+            this.cameraOffset.z -= panSpeed;
+        } else if (mousePos.y > screenHeight - edgeThreshold) {
+            // Bottom edge
+            this.cameraOffset.z += panSpeed;
+        }
+        
+        // Limit camera panning to island bounds
+        const maxOffset = 20;
+        this.cameraOffset.x = Math.max(-maxOffset, Math.min(maxOffset, this.cameraOffset.x));
+        this.cameraOffset.z = Math.max(-maxOffset, Math.min(maxOffset, this.cameraOffset.z));
+        
+        // Calculate center point (player position + camera offset)
+        const centerPosition = new THREE.Vector3(
+            playerPosition.x + this.cameraOffset.x,
+            0, // Keep at ground level
+            playerPosition.z + this.cameraOffset.z
         );
         
-        // Smoothly move camera (lower value = slower camera)
-        camera.position.lerp(targetVector, 0.05);
-        
-        // Look at player's position with slight offset for better view
-        const lookAtPosition = new THREE.Vector3(
-            playerPosition.x,
-            playerPosition.y + 1, // Look slightly above player's feet
-            playerPosition.z
-        );
-        camera.lookAt(lookAtPosition);
+        // Smoothly shift the look target
+        camera.lookAt(centerPosition);
     }
     
     /**

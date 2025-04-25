@@ -13,6 +13,7 @@ export class MiniBoss extends Entity {
         this.maxHealth = options.maxHealth || 200;
         this.speed = options.speed || 2;
         this.attackPower = options.attackPower || 25;
+        this.attackRange = options.attackRange || 8; // Attack range in units (larger than enemy)
         
         // Boss abilities
         this.abilities = options.abilities || [];
@@ -26,6 +27,9 @@ export class MiniBoss extends Entity {
         // Boss state
         this.isActive = true;
         this.currentState = 'idle'; // idle, roam, chase, attack, special
+        
+        // Attack range visualization
+        this.rangeIndicator = null;
         
         // Initialize boss
         this._init();
@@ -156,6 +160,70 @@ export class MiniBoss extends Entity {
                 this._updateSpecial(deltaTime);
                 break;
         }
+        
+        // Check player proximity to show/hide attack range
+        this._updateRangeIndicator();
+    }
+    
+    /**
+     * Create attack range indicator
+     */
+    _createRangeIndicator() {
+        // Create a translucent red circle to indicate attack range
+        const geometry = new THREE.CircleGeometry(this.attackRange, 32);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.5, // Increased opacity for better visibility
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        
+        const indicator = new THREE.Mesh(geometry, material);
+        indicator.rotation.x = -Math.PI / 2; // Flat on ground
+        indicator.position.y = 0.1; // Higher above ground to avoid z-fighting
+        
+        // Add to scene directly rather than as a child of the boss
+        this.engine.renderer.scene.add(indicator);
+        
+        // Store reference
+        this.rangeIndicator = indicator;
+        
+        // Initially hidden
+        this.rangeIndicator.visible = false;
+    }
+    
+    /**
+     * Update attack range indicator visibility based on player proximity
+     */
+    _updateRangeIndicator() {
+        // Create indicator if it doesn't exist
+        if (!this.rangeIndicator) {
+            this._createRangeIndicator();
+        }
+        
+        // Get player from the game state
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (!gameState || !gameState.player) return;
+        
+        const player = gameState.player;
+        const playerPos = player.getPosition();
+        const bossPos = this.getPosition();
+        
+        if (!playerPos || !bossPos) return;
+        
+        // Update indicator position to match boss position
+        this.rangeIndicator.position.x = bossPos.x;
+        this.rangeIndicator.position.z = bossPos.z;
+        
+        // Calculate distance to player
+        const distance = Math.sqrt(
+            Math.pow(playerPos.x - bossPos.x, 2) + 
+            Math.pow(playerPos.z - bossPos.z, 2)
+        );
+        
+        // Show indicator if player is close (within 3x attack range for better visibility)
+        this.rangeIndicator.visible = (distance <= this.attackRange * 3);
     }
     
     /**
@@ -277,6 +345,21 @@ export class MiniBoss extends Entity {
      * Clean up resources
      */
     destroy() {
+        // Dispose of range indicator first
+        if (this.rangeIndicator) {
+            if (this.rangeIndicator.geometry) {
+                this.rangeIndicator.geometry.dispose();
+            }
+            if (this.rangeIndicator.material) {
+                this.rangeIndicator.material.dispose();
+            }
+            // Remove from scene
+            if (this.engine && this.engine.renderer && this.engine.renderer.scene) {
+                this.engine.renderer.scene.remove(this.rangeIndicator);
+            }
+            this.rangeIndicator = null;
+        }
+        
         // Remove from scene
         if (this.object3D && this.object3D.parent) {
             this.object3D.parent.remove(this.object3D);

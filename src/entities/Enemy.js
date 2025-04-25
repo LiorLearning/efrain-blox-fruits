@@ -13,6 +13,7 @@ export class Enemy extends Entity {
         this.maxHealth = options.maxHealth || 50;
         this.speed = options.speed || 3;
         this.attackPower = options.attackPower || 10;
+        this.attackRange = options.attackRange || 5; // Attack range in units
         
         // Create 3D representation
         this.object3D = this._createEnemyModel();
@@ -20,6 +21,12 @@ export class Enemy extends Entity {
         // Enemy state
         this.isActive = true;
         this.currentState = 'idle'; // idle, patrol, chase, attack
+        
+        // Attack range visualization
+        this.rangeIndicator = null;
+        
+        // Health bar
+        this.healthBar = null;
         
         // Initialize enemy
         this._init();
@@ -45,6 +52,9 @@ export class Enemy extends Entity {
             radius: 0.7,  // Enemy collision radius
             height: 2.0   // Enemy collision height
         };
+        
+        // Create health bar
+        this._createHealthBar();
     }
     
     /**
@@ -109,6 +119,79 @@ export class Enemy extends Entity {
     }
     
     /**
+     * Create health bar visualization
+     */
+    _createHealthBar() {
+        const healthBarGroup = new THREE.Group();
+        
+        // Health bar background
+        const bgGeometry = new THREE.PlaneGeometry(1.5, 0.2);
+        const bgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x222222,
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide
+        });
+        const background = new THREE.Mesh(bgGeometry, bgMaterial);
+        healthBarGroup.add(background);
+        
+        // Health bar foreground (shows health amount)
+        const fgGeometry = new THREE.PlaneGeometry(1.5, 0.2);
+        const fgMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide
+        });
+        const foreground = new THREE.Mesh(fgGeometry, fgMaterial);
+        foreground.position.z = 0.01; // Slightly in front of background
+        healthBarGroup.add(foreground);
+        
+        // Position the health bar above the enemy
+        healthBarGroup.position.y = 3.0;
+        
+        // Add health bar to enemy object
+        this.object3D.add(healthBarGroup);
+        
+        // Store reference to update later
+        this.healthBar = {
+            group: healthBarGroup,
+            background: background,
+            foreground: foreground
+        };
+        
+        // Update health bar initial state
+        this._updateHealthBar();
+    }
+    
+    /**
+     * Update health bar to reflect current health
+     */
+    _updateHealthBar() {
+        if (!this.healthBar) return;
+        
+        // Calculate health percentage
+        const healthPercent = this.health / this.maxHealth;
+        
+        // Update foreground width based on health percentage
+        this.healthBar.foreground.scale.x = healthPercent;
+        // Move the pivot point to the left
+        this.healthBar.foreground.position.x = (healthPercent - 1) * 0.75;
+        
+        // Update color based on health (red to yellow to green)
+        if (healthPercent > 0.6) {
+            // Green for high health
+            this.healthBar.foreground.material.color.setHex(0x00ff00);
+        } else if (healthPercent > 0.3) {
+            // Yellow for medium health
+            this.healthBar.foreground.material.color.setHex(0xffff00);
+        } else {
+            // Red for low health
+            this.healthBar.foreground.material.color.setHex(0xff0000);
+        }
+    }
+    
+    /**
      * Update enemy state
      */
     update(deltaTime) {
@@ -129,6 +212,87 @@ export class Enemy extends Entity {
                 this._updateAttack(deltaTime);
                 break;
         }
+        
+        // Check player proximity to show/hide attack range
+        this._updateRangeIndicator();
+        
+        // Make health bar face the camera
+        this._updateHealthBarOrientation();
+    }
+    
+    /**
+     * Make health bar always face the camera
+     */
+    _updateHealthBarOrientation() {
+        if (!this.healthBar || !this.healthBar.group) return;
+        
+        // Get camera from renderer
+        const camera = this.engine.renderer.camera;
+        if (!camera) return;
+        
+        // Make health bar face the camera
+        this.healthBar.group.lookAt(camera.position);
+    }
+    
+    /**
+     * Create attack range indicator
+     */
+    _createRangeIndicator() {
+        // Create a translucent red circle to indicate attack range
+        const geometry = new THREE.CircleGeometry(this.attackRange, 32);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.5, // Increased opacity for better visibility
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        
+        const indicator = new THREE.Mesh(geometry, material);
+        indicator.rotation.x = -Math.PI / 2; // Flat on ground
+        indicator.position.y = 0.1; // Higher above ground to avoid z-fighting
+        
+        // Add to scene directly rather than as a child of the enemy
+        this.engine.renderer.scene.add(indicator);
+        
+        // Store reference
+        this.rangeIndicator = indicator;
+        
+        // Initially hidden
+        this.rangeIndicator.visible = false;
+    }
+    
+    /**
+     * Update attack range indicator visibility based on player proximity
+     */
+    _updateRangeIndicator() {
+        // Create indicator if it doesn't exist
+        if (!this.rangeIndicator) {
+            this._createRangeIndicator();
+        }
+        
+        // Get player from the game state
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (!gameState || !gameState.player) return;
+        
+        const player = gameState.player;
+        const playerPos = player.getPosition();
+        const enemyPos = this.getPosition();
+        
+        if (!playerPos || !enemyPos) return;
+        
+        // Update indicator position to match enemy position
+        this.rangeIndicator.position.x = enemyPos.x;
+        this.rangeIndicator.position.z = enemyPos.z;
+        
+        // Calculate distance to player
+        const distance = Math.sqrt(
+            Math.pow(playerPos.x - enemyPos.x, 2) + 
+            Math.pow(playerPos.z - enemyPos.z, 2)
+        );
+        
+        // Show indicator if player is close (within 3x attack range for better visibility)
+        this.rangeIndicator.visible = (distance <= this.attackRange * 3);
     }
     
     /**
@@ -166,6 +330,12 @@ export class Enemy extends Entity {
     takeDamage(amount) {
         this.health -= amount;
         
+        // Show hit effect
+        this._showHitEffect();
+        
+        // Update health bar
+        this._updateHealthBar();
+        
         if (this.health <= 0) {
             this.health = 0;
             this.die();
@@ -175,17 +345,86 @@ export class Enemy extends Entity {
     }
     
     /**
+     * Show visual effect when enemy is hit
+     */
+    _showHitEffect() {
+        // Flash the enemy red when hit
+        this.object3D.traverse((object) => {
+            if (object.material && !(object instanceof THREE.Sprite)) {
+                // Store original color
+                if (!object.userData) object.userData = {};
+                if (!object.userData.originalColor && object.material.color) {
+                    object.userData.originalColor = object.material.color.clone();
+                }
+                
+                // Set to red
+                object.material.color.set(0xff0000);
+                
+                // Revert back after a short delay
+                setTimeout(() => {
+                    if (object.userData.originalColor) {
+                        object.material.color.copy(object.userData.originalColor);
+                    }
+                }, 200);
+            }
+        });
+    }
+    
+    /**
      * Enemy death
      */
     die() {
         this.isActive = false;
         
+        // Hide health bar
+        if (this.healthBar && this.healthBar.group) {
+            this.healthBar.group.visible = false;
+        }
+        
         // Play death animation or effect
+        this._playDeathEffect();
         
         // Remove after a delay
         setTimeout(() => {
             this.destroy();
         }, 1000);
+    }
+    
+    /**
+     * Play death effect
+     */
+    _playDeathEffect() {
+        // Simple fade out effect
+        const fadeDuration = 1000; // ms
+        const startTime = Date.now();
+        
+        // Create animation loop
+        const fadeOut = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / fadeDuration, 1);
+            
+            // Reduce opacity
+            this.object3D.traverse((object) => {
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(mat => {
+                            mat.transparent = true;
+                            mat.opacity = 1 - progress;
+                        });
+                    } else {
+                        object.material.transparent = true;
+                        object.material.opacity = 1 - progress;
+                    }
+                }
+            });
+            
+            if (progress < 1) {
+                requestAnimationFrame(fadeOut);
+            }
+        };
+        
+        // Start fade out
+        fadeOut();
     }
     
     /**
@@ -215,6 +454,21 @@ export class Enemy extends Entity {
      * Clean up resources
      */
     destroy() {
+        // Dispose of range indicator first
+        if (this.rangeIndicator) {
+            if (this.rangeIndicator.geometry) {
+                this.rangeIndicator.geometry.dispose();
+            }
+            if (this.rangeIndicator.material) {
+                this.rangeIndicator.material.dispose();
+            }
+            // Remove from scene
+            if (this.engine && this.engine.renderer && this.engine.renderer.scene) {
+                this.engine.renderer.scene.remove(this.rangeIndicator);
+            }
+            this.rangeIndicator = null;
+        }
+        
         // Remove from scene
         if (this.object3D && this.object3D.parent) {
             this.object3D.parent.remove(this.object3D);

@@ -10,8 +10,8 @@ export class FlameFruit extends Fruit {
         const flameOptions = {
             name: options.name || 'Flame Fruit',
             type: 'flame',
-            power: options.power || 10,
-            attacks: options.attacks || ['Fireball', 'Flame Dash', 'Inferno'],
+            power: options.power || 20,
+            attacks: ['Fireball', 'Flame Wave', 'Inferno'],
             ...options
         };
         
@@ -72,47 +72,59 @@ export class FlameFruit extends Fruit {
     }
     
     /**
-     * Use a special attack - Flame Dash
+     * Use a special attack - Flame Wave
      */
     useSpecialAttack(position, direction) {
-        if (this.isOnCooldown('Flame Dash')) {
-            console.log('Flame Dash is on cooldown');
+        if (this.isOnCooldown('Flame Wave')) {
+            console.log('Flame Wave is on cooldown');
             return false;
         }
         
-        // Handle dash movement
-        const player = this.engine.player;
-        if (player && player.object3D) {
-            // Calculate dash distance
-            const dashDistance = 8;
-            const dashDirection = direction.clone().normalize().multiplyScalar(dashDistance);
+        // Create a 120-degree cone of fire in front of the player
+        const numProjectiles = 5; // Number of fireballs in the wave
+        const spreadAngle = Math.PI / 3; // 60 degrees (120 degrees total)
+        
+        // Calculate the base angle
+        const baseAngle = Math.atan2(direction.x, direction.z);
+        
+        // Create multiple fireballs in an arc
+        for (let i = 0; i < numProjectiles; i++) {
+            // Calculate angle offset from center
+            const angleOffset = spreadAngle * (i / (numProjectiles - 1) - 0.5);
+            const angle = baseAngle + angleOffset;
             
-            // Store original position for effect
-            const startPos = player.object3D.position.clone();
+            // Create direction vector from angle
+            const projectileDirection = new THREE.Vector3(
+                Math.sin(angle),
+                0,
+                Math.cos(angle)
+            );
             
-            // Move player forward
-            player.object3D.position.add(dashDirection);
-            
-            // Create flame trail between start and end position
-            const trailCount = 10;
-            for (let i = 0; i < trailCount; i++) {
-                const t = i / (trailCount - 1);
-                const trailPos = new THREE.Vector3().lerpVectors(startPos, player.object3D.position, t);
-                this._createFlameParticle(trailPos, 1.5); // larger flame for dash
-            }
-            
-            // Create area damage at destination
-            this.createAreaEffect(player.object3D.position, {
-                radius: 3,
-                color: 0xff3300,
-                damage: this.power * 0.8,
-                lifetime: 0.5,
-                type: 'flameDash'
+            // Create a smaller, faster fireball
+            const fireball = this.createProjectile(position, projectileDirection, {
+                geometry: new THREE.SphereGeometry(0.3, 8, 8),
+                material: new THREE.MeshBasicMaterial({
+                    color: 0xff3300,
+                    transparent: true,
+                    opacity: 0.7
+                }),
+                speed: 20,
+                damage: this.power * 0.7, // Less damage per projectile
+                lifetime: 1, // Shorter lifetime
+                type: 'fireball'
             });
+            
+            // Add special effects
+            if (fireball) {
+                // Add a small light to make it glow
+                const light = new THREE.PointLight(0xff3300, 0.7, 3);
+                fireball.add(light);
+            }
         }
         
-        // Set cooldown
-        this.cooldowns['Flame Dash'] = 5; // 5 second cooldown
+        // Set longer cooldown for special attack
+        this.cooldowns['Flame Wave'] = 5; // 5 seconds cooldown
+        this.cooldowns['special'] = 5; // General special attack cooldown
         
         return true;
     }
@@ -126,141 +138,83 @@ export class FlameFruit extends Fruit {
             return false;
         }
         
-        // Create a massive area effect
+        // Create a large area effect of fire
         const inferno = this.createAreaEffect(position, {
-            radius: 10,
-            color: 0xff0000,
-            damage: this.power * 2,
-            lifetime: 4,
+            radius: 8,
+            color: 0xff2200,
+            damage: this.power * 3,
+            lifetime: 5,
             type: 'inferno'
         });
         
-        if (inferno) {
-            // Add a light source
-            const light = new THREE.PointLight(0xff3300, 2, 15);
-            light.position.y = 3;
-            inferno.add(light);
-            
-            // Add fire columns
-            const columns = 8;
-            for (let i = 0; i < columns; i++) {
-                const angle = (i / columns) * Math.PI * 2;
-                const radius = 7;
-                const columnPos = new THREE.Vector3(
-                    Math.cos(angle) * radius,
-                    0,
-                    Math.sin(angle) * radius
-                );
-                
-                // Create a fire column
-                const columnGeometry = new THREE.CylinderGeometry(0.5, 1, 5, 8);
-                const columnMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xff5500,
-                    transparent: true,
-                    opacity: 0.7
-                });
-                const column = new THREE.Mesh(columnGeometry, columnMaterial);
-                column.position.copy(columnPos);
-                column.position.y = 2.5; // Place at half height
-                
-                inferno.add(column);
-                
-                // Add small light to column
-                const columnLight = new THREE.PointLight(0xff5500, 0.5, 5);
-                columnLight.position.y = 3;
-                column.add(columnLight);
-            }
-            
-            // Add update handler for special effects
-            const originalUpdate = inferno.userData.update;
-            inferno.userData.update = function(deltaTime) {
-                // Call the original update
-                const result = originalUpdate(deltaTime);
-                
-                // Add flame particles
-                if (Math.random() < 0.3) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const radius = Math.random() * 10;
-                    const particlePos = new THREE.Vector3(
-                        inferno.position.x + Math.cos(angle) * radius,
-                        inferno.position.y,
-                        inferno.position.z + Math.sin(angle) * radius
-                    );
-                    this._createFlameParticle(particlePos);
-                }
-                
-                return result;
-            }.bind(this);
-        }
-        
-        // Set cooldown
-        this.cooldowns['Inferno'] = 15; // 15 second cooldown
+        // Set very long cooldown for ultimate
+        this.cooldowns['Inferno'] = 30; // 30 seconds cooldown
         
         return true;
     }
     
     /**
-     * Create a flame particle effect
+     * Create a flame particle for effects
      */
-    _createFlameParticle(position, size = 1) {
-        const scene = this.engine.renderer.scene;
-        if (!scene) return null;
+    _createFlameParticle(position) {
+        // Slightly randomize position
+        position.x += (Math.random() - 0.5) * 0.3;
+        position.y += (Math.random() - 0.5) * 0.3;
+        position.z += (Math.random() - 0.5) * 0.3;
         
         // Create a small flame particle
-        const geometry = new THREE.SphereGeometry(0.2 * size, 8, 8);
+        const geometry = new THREE.SphereGeometry(0.2, 4, 4);
         const material = new THREE.MeshBasicMaterial({
-            color: Math.random() < 0.5 ? 0xff5500 : 0xff0000,
+            color: Math.random() > 0.5 ? 0xff9900 : 0xff5500, // Orange/red variation
             transparent: true,
             opacity: 0.7
         });
         
         const particle = new THREE.Mesh(geometry, material);
         particle.position.copy(position);
-        particle.position.y += 0.5; // Slight offset from ground
-        
-        // Add random movement
-        particle.userData = {
-            velocity: new THREE.Vector3(
-                (Math.random() - 0.5) * 2,
-                Math.random() * 2 + 2,
-                (Math.random() - 0.5) * 2
-            ),
-            lifetime: Math.random() * 0.5 + 0.5,
-            currentLifetime: 0,
-            update: function(deltaTime) {
-                // Move upward
-                this.position.add(this.userData.velocity.clone().multiplyScalar(deltaTime));
-                
-                // Shrink as it rises
-                const lifeRatio = this.userData.currentLifetime / this.userData.lifetime;
-                const scale = 1 - lifeRatio;
-                this.scale.set(scale, scale, scale);
-                
-                // Fade out
-                this.material.opacity = 0.7 * (1 - lifeRatio);
-                
-                // Update lifetime
-                this.userData.currentLifetime += deltaTime;
-                
-                // Destroy if lifetime is exceeded
-                if (this.userData.currentLifetime >= this.userData.lifetime) {
-                    scene.remove(this);
-                    return false;
-                }
-                
-                return true;
-            }.bind(particle)
-        };
         
         // Add to scene
-        scene.add(particle);
+        this.engine.renderer.scene.add(particle);
         
-        // Keep track of all effects to update them
-        if (!this.engine.effectsToUpdate) {
-            this.engine.effectsToUpdate = [];
-        }
-        this.engine.effectsToUpdate.push(particle);
+        // Animate the particle
+        const lifetime = 0.3 + Math.random() * 0.3; // 0.3-0.6 seconds
+        const startTime = Date.now();
+        const duration = lifetime * 1000; // Convert to milliseconds
         
-        return particle;
+        // Add a small upward velocity
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.5, // Small random x movement
+            1 + Math.random(),           // Upward movement
+            (Math.random() - 0.5) * 0.5  // Small random z movement
+        );
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
+            
+            if (progress < 1) {
+                // Move upward and fade
+                particle.position.x += velocity.x * 0.01;
+                particle.position.y += velocity.y * 0.01;
+                particle.position.z += velocity.z * 0.01;
+                
+                // Shrink slightly as it rises
+                const scale = 1 - progress * 0.5;
+                particle.scale.set(scale, scale, scale);
+                
+                // Fade out
+                particle.material.opacity = 0.7 * (1 - progress);
+                
+                requestAnimationFrame(animate);
+            } else {
+                // Remove when animation is complete
+                this.engine.renderer.scene.remove(particle);
+                particle.geometry.dispose();
+                particle.material.dispose();
+            }
+        };
+        
+        // Start animation
+        animate();
     }
 }

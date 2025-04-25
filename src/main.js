@@ -19,6 +19,18 @@ function initGame() {
     engine.init();
     engine.start();
     
+    // Set up event listeners
+    window.addEventListener('resize', () => {
+        engine.resize(window.innerWidth, window.innerHeight);
+    });
+    
+    // Add debug mode toggle
+    window.addEventListener('keydown', (event) => {
+        if (event.code === 'KeyD' && event.ctrlKey) {
+            engine.renderer.toggleDebugMode();
+        }
+    });
+    
     console.log('Blok Fruits game initialized!');
 }
 
