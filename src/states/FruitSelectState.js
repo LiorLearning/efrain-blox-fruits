@@ -41,6 +41,12 @@ export class FruitSelectState extends BaseState {
         // Reset selected fruits
         this.selectedFruits = [];
         
+        // Set background texture
+        const backgroundTexture = this.engine.resources.getTexture('background');
+        if (backgroundTexture && this.engine.renderer.scene) {
+            this.engine.renderer.scene.background = backgroundTexture;
+        }
+        
         // Create and show UI
         this.createUI();
         
@@ -63,7 +69,7 @@ export class FruitSelectState extends BaseState {
             <div class="fruit-select-header">Choose Your Fruits</div>
             <div class="fruit-select-subtitle">Select 5 fruits to begin your adventure</div>
             <div class="fruit-selection-count">Selected: 0/5</div>
-            <div class="fruit-grid"></div>
+            <div class="fruit-grid interactive-element"></div>
             <button class="start-button" disabled>Start Adventure</button>
         `;
         
@@ -185,16 +191,28 @@ export class FruitSelectState extends BaseState {
         
         fruits.forEach((fruit, index) => {
             const fruitItem = document.createElement('div');
-            fruitItem.className = 'fruit-item';
+            fruitItem.className = 'fruit-item interactive-element';
             fruitItem.dataset.fruitIndex = index;
             
             fruitItem.innerHTML = `
-                <div class="fruit-icon">${this.getFruitEmoji(fruit.type)}</div>
+                <div class="fruit-icon">
+                    <img src="assets/models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" alt="${fruit.name}" style="width: 64px; height: 64px; object-fit: contain;">
+                </div>
                 <div class="fruit-name">${fruit.name}</div>
                 <div class="fruit-power">Power: ${fruit.power}</div>
             `;
             
-            fruitItem.addEventListener('click', () => this.toggleFruitSelection(fruitItem, fruit));
+            // Add a specific z-index to ensure fruit items are on top and clickable
+            fruitItem.style.position = 'relative';
+            fruitItem.style.zIndex = '10';
+            
+            // Add a more robust click event that ensures propagation
+            fruitItem.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleFruitSelection(fruitItem, fruit);
+                return false;
+            };
             
             fruitGrid.appendChild(fruitItem);
         });

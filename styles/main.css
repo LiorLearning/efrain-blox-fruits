@@ -16,6 +16,7 @@ body, html {
     position: relative;
     width: 100%;
     height: 100%;
+    background-color: #0a0a1a; /* Dark blue-black background */
 }
 
 #game-canvas {
@@ -31,6 +32,13 @@ body, html {
     width: 100%;
     height: 100%;
     pointer-events: none; /* Allow clicks to pass through to the canvas */
+    z-index: 10;
+}
+
+#ui-container .start-button,
+#ui-container button,
+#ui-container .interactive-element {
+    pointer-events: auto; /* Re-enable pointer events for interactive elements */
 }
 
 #loading-screen {
@@ -66,4 +74,62 @@ body, html {
     height: 100%;
     background-color: #ff5500; /* Fruit theme color */
     transition: width 0.3s ease;
+}
+
+/* Menu UI Elements */
+.menu-ui {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: white;
+    user-select: none;
+    z-index: 20;
+}
+
+.menu-title {
+    font-size: 48px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    margin-bottom: 15px;
+    color: #fff;
+}
+
+.menu-subtitle {
+    font-size: 24px;
+    margin-bottom: 25px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+    color: #eee;
+}
+
+.menu-instructions {
+    font-size: 18px;
+    margin-top: 20px;
+    padding: 12px 20px;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    display: inline-block;
+    color: #ddd;
+}
+
+.start-button {
+    display: inline-block;
+    margin-top: 30px;
+    padding: 15px 30px;
+    background-color: #ff5500;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+    pointer-events: auto;
+}
+
+.start-button:hover {
+    background-color: #ff7700;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
 }

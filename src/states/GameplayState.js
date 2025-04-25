@@ -2,6 +2,9 @@
  * Main gameplay state
  */
 import { BaseState } from './BaseState.js';
+import { Player } from '../entities/Player.js';
+import { Enemy } from '../entities/Enemy.js';
+import { MiniBoss } from '../entities/MiniBoss.js';
 
 export class GameplayState extends BaseState {
     constructor(engine) {
@@ -11,6 +14,8 @@ export class GameplayState extends BaseState {
         this.gameplayUI = null;
         
         this.player = null;
+        this.enemies = [];
+        this.boss = null;
         this.currentIsland = null;
     }
     
@@ -32,6 +37,9 @@ export class GameplayState extends BaseState {
         
         // Create player
         this.createPlayer();
+        
+        // Create enemies and boss
+        this.createEnemies();
         
         // Create and show UI
         this.createUI();
@@ -58,6 +66,14 @@ export class GameplayState extends BaseState {
         objectsToRemove.forEach(object => {
             scene.remove(object);
         });
+        
+        // Set background texture
+        const backgroundTexture = this.engine.resources.getTexture('background');
+        if (backgroundTexture) {
+            scene.background = backgroundTexture;
+        } else {
+            console.warn("Background texture not found, using default sky color");
+        }
         
         // Create island ground
         const groundGeometry = new THREE.CylinderGeometry(30, 30, 2, 32);
@@ -152,46 +168,46 @@ export class GameplayState extends BaseState {
      * Create player character
      */
     createPlayer() {
-        // Create a simple player representation
-        const playerGroup = new THREE.Group();
+        // Create player with config
+        const playerConfig = this.engine.config.player;
         
-        // Player body
-        const bodyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 8);
-        const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x3333ff }); // Blue jacket
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 0.75; // Half height
-        playerGroup.add(body);
+        // Check for selected fruits or use defaults
+        let playerFruits = [];
+        if (this.engine.playerFruits && this.engine.playerFruits.length > 0) {
+            playerFruits = this.engine.playerFruits;
+        } else {
+            // Use default fruits from config
+            playerFruits = this.engine.config.fruits;
+        }
         
-        // Player head
-        const headGeometry = new THREE.SphereGeometry(0.4, 16, 16);
-        const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffcc99 }); // Skin color
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.y = 1.9; // Above body
-        playerGroup.add(head);
+        // Create player instance
+        this.player = new Player(this.engine, {
+            name: playerConfig.name,
+            health: playerConfig.health,
+            maxHealth: playerConfig.health,
+            speed: playerConfig.speed,
+            jumpPower: playerConfig.jumpPower,
+            fruits: playerFruits
+        });
         
-        // Player cap
-        const capGeometry = new THREE.ConeGeometry(0.45, 0.4, 8);
-        const capMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Red cap
-        const cap = new THREE.Mesh(capGeometry, capMaterial);
-        cap.position.y = 2.2; // Above head
-        cap.rotation.x = Math.PI / 8; // Tilt forward slightly
-        playerGroup.add(cap);
-        
-        // Add player to scene
-        this.engine.renderer.scene.add(playerGroup);
-        
-        // Store player reference
-        this.player = playerGroup;
-        this.player.position.y = 0.75; // Above ground
+        // Center player on the island
+        this.player.setPosition(0, 0, 0);
     }
     
     /**
-     * Set up camera to follow player
+     * Set up camera to follow player in isometric view
      */
     setupCamera() {
-        // Set camera position
+        // Set camera position for isometric view
         const camera = this.engine.renderer.camera;
-        camera.position.set(0, 7, 12);
+        
+        // Position camera for isometric view (positioned diagonally above the player)
+        camera.position.set(15, 15, 15);
+        camera.lookAt(0, 0, 0); // Look at the center of the scene
+        
+        // Adjust camera settings
+        camera.fov = 45; // Narrower field of view for more isometric look
+        camera.updateProjectionMatrix();
         
         // Disable orbit controls for gameplay
         if (this.engine.renderer.controls) {
@@ -331,7 +347,7 @@ export class GameplayState extends BaseState {
             this.engine.playerFruits.forEach((fruit, index) => {
                 const fruitItem = document.createElement('div');
                 fruitItem.className = 'fruit-power-item';
-                fruitItem.textContent = this.getFruitEmoji(fruit.type);
+                fruitItem.innerHTML = `<img src="assets/models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" alt="${fruit.name}" style="width: 40px; height: 40px; object-fit: contain;">`;
                 fruitItem.dataset.fruitIndex = index;
                 
                 if (index === 0) {
@@ -346,7 +362,7 @@ export class GameplayState extends BaseState {
             defaultFruits.forEach((type, index) => {
                 const fruitItem = document.createElement('div');
                 fruitItem.className = 'fruit-power-item';
-                fruitItem.textContent = this.getFruitEmoji(type);
+                fruitItem.innerHTML = `<img src="assets/models/fruits/${type.charAt(0).toUpperCase() + type.slice(1)}Fruit.png" alt="${type}" style="width: 40px; height: 40px; object-fit: contain;">`;
                 fruitItem.dataset.fruitIndex = index;
                 
                 if (index === 0) {
@@ -374,6 +390,53 @@ export class GameplayState extends BaseState {
     }
     
     /**
+     * Create enemies and boss
+     */
+    createEnemies() {
+        // Clear any existing enemies
+        this.enemies.forEach(enemy => {
+            if (enemy) enemy.destroy();
+        });
+        this.enemies = [];
+        
+        if (this.boss) {
+            this.boss.destroy();
+            this.boss = null;
+        }
+        
+        // Create some regular enemies at random positions around the island
+        for (let i = 0; i < 3; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 10 + Math.random() * 15; // Random position on the island
+            
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            
+            const enemy = new Enemy(this.engine, {
+                name: `Villain ${i+1}`,
+                health: 50 + i * 10
+            });
+            
+            enemy.setPosition(x, 0, z);
+            this.enemies.push(enemy);
+        }
+        
+        // Create a boss at the far end of the island
+        this.boss = new MiniBoss(this.engine, {
+            name: 'Island Boss',
+            health: 200,
+            abilities: [
+                { name: 'shockwave', power: 30 },
+                { name: 'teleport', power: 0 },
+                { name: 'fireBlast', power: 40 }
+            ]
+        });
+        
+        // Position the boss at the far end of the island
+        this.boss.setPosition(0, 0, -25);
+    }
+
+    /**
      * Update the gameplay state
      */
     update(deltaTime) {
@@ -381,6 +444,16 @@ export class GameplayState extends BaseState {
         
         // Update player movement
         this.updatePlayerMovement(deltaTime);
+        
+        // Update enemies
+        this.enemies.forEach(enemy => {
+            if (enemy) enemy.update(deltaTime);
+        });
+        
+        // Update boss
+        if (this.boss) {
+            this.boss.update(deltaTime);
+        }
         
         // Update camera to follow player
         this.updateCamera();
@@ -392,85 +465,43 @@ export class GameplayState extends BaseState {
     updatePlayerMovement(deltaTime) {
         if (!this.player) return;
         
-        const input = this.engine.input;
-        const speed = this.engine.config.player.speed * deltaTime;
-        
-        // Get movement direction
-        let moveX = 0;
-        let moveZ = 0;
-        
-        if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) {
-            moveZ -= speed;
-        }
-        
-        if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) {
-            moveZ += speed;
-        }
-        
-        if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) {
-            moveX -= speed;
-        }
-        
-        if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) {
-            moveX += speed;
-        }
-        
-        // Apply movement
-        if (moveX !== 0 || moveZ !== 0) {
-            this.player.position.x += moveX;
-            this.player.position.z += moveZ;
-            
-            // Rotate player to face movement direction
-            if (moveX !== 0 || moveZ !== 0) {
-                const angle = Math.atan2(moveX, moveZ);
-                this.player.rotation.y = angle;
-            }
-        }
-        
-        // Keep player within island bounds
-        const distanceFromCenter = Math.sqrt(
-            this.player.position.x * this.player.position.x + 
-            this.player.position.z * this.player.position.z
-        );
-        
-        if (distanceFromCenter > 29) {
-            // Player is too close to edge, push back
-            const angle = Math.atan2(this.player.position.x, this.player.position.z);
-            this.player.position.x = Math.sin(angle) * 29;
-            this.player.position.z = Math.cos(angle) * 29;
-        }
+        // Player entity now handles its own movement
+        this.player.update(deltaTime);
     }
     
     /**
-     * Update camera to follow player
+     * Update camera to follow player in isometric view
      */
     updateCamera() {
         if (!this.player) return;
         
         const camera = this.engine.renderer.camera;
         
-        // Calculate target position (behind and above player)
-        const offset = new THREE.Vector3(
-            -Math.sin(this.player.rotation.y) * 8,
-            7,
-            -Math.cos(this.player.rotation.y) * 8
+        // Calculate isometric camera position relative to player
+        // This maintains a fixed angle isometric view while following the player
+        const offsetX = 15;
+        const offsetY = 15;
+        const offsetZ = 15;
+        
+        // Get player position
+        const playerPosition = this.player.getPosition();
+        if (!playerPosition) return;
+        
+        // Calculate target camera position
+        const targetPosition = new THREE.Vector3(
+            playerPosition.x + offsetX,
+            playerPosition.y + offsetY,
+            playerPosition.z + offsetZ
         );
         
-        // Smoothly move camera
-        camera.position.lerp(
-            new THREE.Vector3(
-                this.player.position.x + offset.x,
-                this.player.position.y + offset.y,
-                this.player.position.z + offset.z
-            ),
-            0.1
-        );
+        // Smoothly move camera (lower value = slower camera)
+        camera.position.lerp(targetPosition, 0.05);
         
-        // Look at player
+        // Look at player's position with slight offset for better view
         camera.lookAt(
-            this.player.position.x,
-            this.player.position.y + 1.5,
-            this.player.position.z
+            playerPosition.x,
+            playerPosition.y + 1, // Look slightly above player's feet
+            playerPosition.z
         );
     }
     
@@ -482,6 +513,24 @@ export class GameplayState extends BaseState {
         
         // Remove UI
         this.removeUI();
+        
+        // Clean up player
+        if (this.player) {
+            this.player.destroy();
+            this.player = null;
+        }
+        
+        // Clean up enemies
+        this.enemies.forEach(enemy => {
+            if (enemy) enemy.destroy();
+        });
+        this.enemies = [];
+        
+        // Clean up boss
+        if (this.boss) {
+            this.boss.destroy();
+            this.boss = null;
+        }
         
         // Re-enable orbit controls if they exist
         if (this.engine.renderer.controls) {

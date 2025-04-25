@@ -99,7 +99,9 @@ export class StateManager {
    * Get the current state
    */
   getCurrentState() {
-      return this.currentState;
+      // Get current state name
+      const stateName = this.getCurrentStateName();
+      return stateName;
   }
   
   /**

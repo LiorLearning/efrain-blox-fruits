@@ -18,6 +18,8 @@ export class Renderer {
   init() {
       // Create a new Three.js scene
       this.scene = new THREE.Scene();
+      
+      // Default background color (will be replaced by texture when loaded)
       this.scene.background = new THREE.Color(0x87CEEB); // Sky blue background
       
       // Create camera

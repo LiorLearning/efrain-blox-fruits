@@ -22,15 +22,24 @@ export class LoadingState extends BaseState {
     init() {
         super.init();
         
-        // Initialize resource system
-        this.engine.resources.init();
-        
-        // Set up loading callbacks
-        this.engine.resources.setCallbacks(
-            this.onProgress.bind(this),
-            this.onComplete.bind(this),
-            this.onError.bind(this)
-        );
+        // Ensure THREE is defined before initializing resources
+        if (window.THREE) {
+            // Initialize resource system
+            this.engine.resources.init();
+            
+            // Set up loading callbacks
+            this.engine.resources.setCallbacks(
+                this.onProgress.bind(this),
+                this.onComplete.bind(this),
+                this.onError.bind(this)
+            );
+        } else {
+            console.error("THREE is not defined yet. This should not happen.");
+            // Force complete loading to avoid being stuck
+            setTimeout(() => {
+                this.onComplete();
+            }, 1000);
+        }
     }
     
     /**
@@ -48,23 +57,27 @@ export class LoadingState extends BaseState {
         this.assetsLoaded = false;
         this.displayTimer = 0;
         
-        // Define resources to load
+        // Define resources to load with corrected paths
+        // Ensure proper casing in file names
         const resources = {
             textures: [
-                // Example textures to load
-                // { name: 'grass', path: 'assets/textures/grass.jpg' },
-                // { name: 'water', path: 'assets/textures/water.jpg' }
+                // Load background texture
+                { name: 'background', path: 'assets/models/background.png' },
+                // Load player texture
+                { name: 'player', path: 'assets/models/entities/Player.png' },
+                // Load villain texture
+                { name: 'villain', path: 'assets/models/entities/villian.png' },
+                // Load boss texture
+                { name: 'boss', path: 'assets/models/entities/boss.png' },
+                // Load all fruit textures
+                { name: 'flameFruit', path: 'assets/models/fruits/FlameFruit.png' },
+                { name: 'iceFruit', path: 'assets/models/fruits/IceFruit.png' },
+                { name: 'bombFruit', path: 'assets/models/fruits/BombFruit.png' },
+                { name: 'lightFruit', path: 'assets/models/fruits/LightFruit.png' },
+                { name: 'magmaFruit', path: 'assets/models/fruits/MagmaFruit.png' }
             ],
-            models: [
-                // Example models to load
-                // { name: 'player', path: 'assets/models/player.glb' },
-                // { name: 'fruit', path: 'assets/models/fruit.glb' }
-            ],
-            sounds: [
-                // Example sounds to load
-                // { name: 'background', path: 'assets/sounds/background.mp3' },
-                // { name: 'attack', path: 'assets/sounds/attack.mp3' }
-            ]
+            models: [],
+            sounds: []
         };
         
         // Start loading resources
@@ -77,11 +90,14 @@ export class LoadingState extends BaseState {
      * Load game resources
      */
     loadResources(resources) {
+        console.log("Loading resources:", resources);
+        
         // If there are no resources to load, simulate loading
         if (resources.textures.length === 0 && 
             resources.models.length === 0 && 
             resources.sounds.length === 0) {
                 
+            console.log("No resources to load, simulating loading progress");
             // Simulate loading progress
             let progress = 0;
             const interval = setInterval(() => {
@@ -97,13 +113,33 @@ export class LoadingState extends BaseState {
             return;
         }
         
-        // Load actual resources
-        this.engine.resources.loadResources(resources)
-            .catch(error => {
-                console.error('Error loading resources:', error);
-                // Continue to menu even if some resources failed
-                this.onComplete();
+        try {
+            console.log(`Starting to load ${resources.textures.length} textures, ${resources.models.length} models, and ${resources.sounds.length} sounds`);
+            
+            // Check if some resources may be missing and log it
+            resources.textures.forEach(texture => {
+                const img = new Image();
+                img.onload = () => console.log(`Verified texture exists: ${texture.path}`);
+                img.onerror = () => console.error(`Texture does not exist: ${texture.path}`);
+                img.src = texture.path;
             });
+            
+            // Load actual resources
+            this.engine.resources.loadResources(resources)
+                .then(() => {
+                    console.log("Resources loaded successfully");
+                    this.onComplete();
+                })
+                .catch(error => {
+                    console.error('Error loading resources:', error);
+                    // Continue to menu even if some resources failed
+                    this.onComplete();
+                });
+        } catch (e) {
+            console.error('Exception during resource loading:', e);
+            // Force complete loading in case of error
+            this.onComplete();
+        }
     }
     
     /**
@@ -118,6 +154,7 @@ export class LoadingState extends BaseState {
             
             // Once minimum display time is reached, proceed to menu
             if (this.displayTimer >= this.minDisplayTime) {
+                console.log("Loading complete, transitioning to menu state");
                 this.engine.stateManager.changeState('menu');
             }
         }
@@ -127,9 +164,11 @@ export class LoadingState extends BaseState {
      * Handle loading progress
      */
     onProgress(url, itemsLoaded, itemsTotal, progress) {
-        this.progressBar.style.width = `${progress * 100}%`;
+        if (this.progressBar) {
+            this.progressBar.style.width = `${progress * 100}%`;
+        }
         
-        if (url) {
+        if (url && this.loadingText) {
             // Extract filename from URL
             const filename = url.split('/').pop();
             this.loadingText.textContent = `Loading: ${filename}`;
@@ -140,11 +179,27 @@ export class LoadingState extends BaseState {
      * Handle loading completion
      */
     onComplete() {
-        this.progressBar.style.width = '100%';
-        this.loadingText.textContent = 'Loading complete!';
+        if (this.progressBar) {
+            this.progressBar.style.width = '100%';
+        }
+        
+        if (this.loadingText) {
+            this.loadingText.textContent = 'Loading complete!';
+        }
+        
+        console.log("Asset loading complete");
         
         // Mark assets as loaded
         this.assetsLoaded = true;
+        
+        // Force transition to menu state after a short delay
+        // This is a failsafe in case the regular transition doesn't happen
+        setTimeout(() => {
+            if (this.engine.stateManager.getCurrentState() === 'loading') {
+                console.log("Forcing transition to menu state");
+                this.engine.stateManager.changeState('menu');
+            }
+        }, 2000);
     }
     
     /**
@@ -152,7 +207,9 @@ export class LoadingState extends BaseState {
      */
     onError(url) {
         console.error(`Failed to load: ${url}`);
-        this.loadingText.textContent = `Error loading: ${url}`;
+        if (this.loadingText) {
+            this.loadingText.textContent = `Error loading: ${url}`;
+        }
     }
     
     /**
@@ -162,6 +219,8 @@ export class LoadingState extends BaseState {
         super.exit();
         
         // Hide loading screen
-        this.loadingScreen.style.display = 'none';
+        if (this.loadingScreen) {
+            this.loadingScreen.style.display = 'none';
+        }
     }
 }
