@@ -56,6 +56,82 @@ export class MiniBoss extends Entity {
                 height: 3.0   // Boss collision height
             };
         }
+        
+        // Create health bar
+        this._createHealthBar();
+    }
+    
+    /**
+     * Create health bar visualization
+     */
+    _createHealthBar() {
+        const healthBarGroup = new THREE.Group();
+        
+        // Health bar background
+        const bgGeometry = new THREE.PlaneGeometry(2.0, 0.3);
+        const bgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x222222,
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide
+        });
+        const background = new THREE.Mesh(bgGeometry, bgMaterial);
+        healthBarGroup.add(background);
+        
+        // Health bar foreground (shows health amount)
+        const fgGeometry = new THREE.PlaneGeometry(2.0, 0.3);
+        const fgMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide
+        });
+        const foreground = new THREE.Mesh(fgGeometry, fgMaterial);
+        foreground.position.z = 0.01; // Slightly in front of background
+        healthBarGroup.add(foreground);
+        
+        // Position the health bar above the boss
+        healthBarGroup.position.y = 4.5;
+        
+        // Add health bar to boss object
+        this.object3D.add(healthBarGroup);
+        
+        // Store reference to update later
+        this.healthBar = {
+            group: healthBarGroup,
+            background: background,
+            foreground: foreground
+        };
+        
+        // Update health bar initial state
+        this._updateHealthBar();
+    }
+    
+    /**
+     * Update health bar to reflect current health
+     */
+    _updateHealthBar() {
+        if (!this.healthBar) return;
+        
+        // Calculate health percentage
+        const healthPercent = this.health / this.maxHealth;
+        
+        // Update foreground width based on health percentage
+        this.healthBar.foreground.scale.x = healthPercent;
+        // Move the pivot point to the left
+        this.healthBar.foreground.position.x = (healthPercent - 1) * 1.0;
+        
+        // Update color based on health (red to yellow to green)
+        if (healthPercent > 0.6) {
+            // Green for high health
+            this.healthBar.foreground.material.color.setHex(0x00ff00);
+        } else if (healthPercent > 0.3) {
+            // Yellow for medium health
+            this.healthBar.foreground.material.color.setHex(0xffff00);
+        } else {
+            // Red for low health
+            this.healthBar.foreground.material.color.setHex(0xff0000);
+        }
     }
     
     /**
@@ -289,7 +365,16 @@ export class MiniBoss extends Entity {
      * Make the boss take damage
      */
     takeDamage(amount) {
+        const oldHealth = this.health;
         this.health -= amount;
+        
+        console.log(`Boss ${this.name} Health: ${oldHealth.toFixed(1)} -> ${this.health.toFixed(1)} (damage: ${amount.toFixed(1)})`);
+        
+        // Show hit effect (flash red)
+        this._showHitEffect();
+        
+        // Update health bar
+        this._updateHealthBar();
         
         // Boss becomes more aggressive when health is low
         if (this.health < this.maxHealth * 0.3) {
@@ -302,6 +387,32 @@ export class MiniBoss extends Entity {
         }
         
         return this.health;
+    }
+    
+    /**
+     * Show visual effect when boss is hit
+     */
+    _showHitEffect() {
+        // Flash the boss red when hit
+        this.object3D.traverse((object) => {
+            if (object.material && !(object instanceof THREE.Sprite)) {
+                // Store original color
+                if (!object.userData) object.userData = {};
+                if (!object.userData.originalColor && object.material.color) {
+                    object.userData.originalColor = object.material.color.clone();
+                }
+                
+                // Set to red
+                object.material.color.set(0xff0000);
+                
+                // Revert back after a short delay
+                setTimeout(() => {
+                    if (object.userData.originalColor) {
+                        object.material.color.copy(object.userData.originalColor);
+                    }
+                }, 200);
+            }
+        });
     }
     
     /**

@@ -94,7 +94,6 @@ export class Renderer {
       this.controls.minPolarAngle = Math.PI / 6; // 30 degrees
       this.controls.maxPolarAngle = Math.PI / 3; // 60 degrees
       
-      console.log('Three.js renderer initialized');
   }
   
   /**
@@ -199,7 +198,6 @@ export class Renderer {
           
           // Enable scene inspector
           import('three/examples/jsm/utils/SceneUtils.js').then(() => {
-              console.log('Three.js debug tools initialized');
           });
       });
   }
@@ -217,7 +215,6 @@ export class Renderer {
           this.stats = null;
       }
       
-      console.log(`Debug mode ${this.debugMode ? 'enabled' : 'disabled'}`);
       return this.debugMode;
   }
 }

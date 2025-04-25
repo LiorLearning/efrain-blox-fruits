@@ -50,8 +50,6 @@ export class StateManager {
       
       // Enter new state
       this.currentState.enter(params);
-      
-      console.log(`Changed state to "${name}"`);
       return true;
   }
   

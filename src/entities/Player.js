@@ -3,6 +3,11 @@
  */
 import { Entity } from './Entity.js';
 import * as THREE from 'three';
+import { FlameFruit } from '../powers/FlameFruit.js';
+import { IceFruit } from '../powers/IceFruit.js';
+import { BombFruit } from '../powers/BombFruit.js';
+import { LightFruit } from '../powers/LightFruit.js';
+import { MagmaFruit } from '../powers/MagmaFruit.js';
 
 export class Player extends Entity {
     constructor(engine, options = {}) {
@@ -14,8 +19,8 @@ export class Player extends Entity {
         this.speed = options.speed || 5;
         this.jumpPower = options.jumpPower || 10;
         
-        // Store selected fruits (powers)
-        this.fruits = options.fruits || [];
+        // Initialize fruit powers from config objects
+        this.fruits = this._initializeFruits(options.fruits || []);
         this.activeFruitIndex = 0;
         
         // Create 3D representation
@@ -30,6 +35,12 @@ export class Player extends Entity {
         // Attack cooldowns
         this.attackCooldown = 0;
         this.attackCooldownTime = 0.5; // seconds
+        
+        // Math challenge system
+        this.mathChallengeActive = false;
+        this.mathChallengeUI = null;
+        this.currentMathProblem = null;
+        this.mathRewardAmount = 3; // Default number of uses added on success
         
         // Initialize player
         this._init();
@@ -58,6 +69,11 @@ export class Player extends Entity {
         
         // Update UI when active fruit changes
         this._setupKeyboardControls();
+        
+        // Initialize fruit UI with use counters
+        setTimeout(() => {
+            this._updateFruitUI();
+        }, 500); // Short delay to ensure UI elements are created
     }
     
     /**
@@ -100,6 +116,100 @@ export class Player extends Entity {
         if (activeItem) {
             activeItem.classList.add('active');
         }
+        
+        // Update uses count for all fruits
+        fruitItems.forEach((item, index) => {
+            if (index < this.fruits.length) {
+                const fruit = this.fruits[index];
+                
+                // Create or update uses counter
+                let usesCounter = item.querySelector('.fruit-uses-counter');
+                if (!usesCounter) {
+                    usesCounter = document.createElement('div');
+                    usesCounter.className = 'fruit-uses-counter';
+                    item.appendChild(usesCounter);
+                }
+                
+                // Update counter text
+                usesCounter.textContent = fruit.usesRemaining;
+                
+                // Add warning style if no uses left
+                if (fruit.usesRemaining <= 0) {
+                    usesCounter.classList.add('no-uses');
+                } else {
+                    usesCounter.classList.remove('no-uses');
+                }
+            }
+        });
+        
+        // Add style for the counter if it doesn't exist yet
+        if (!document.querySelector('#fruit-uses-style')) {
+            const style = document.createElement('style');
+            style.id = 'fruit-uses-style';
+            style.textContent = `
+                .fruit-uses-counter {
+                    position: absolute;
+                    top: -5px;
+                    right: -5px;
+                    background-color: #4caf50;
+                    color: white;
+                    border-radius: 50%;
+                    width: 20px;
+                    height: 20px;
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                }
+                
+                .fruit-uses-counter.no-uses {
+                    background-color: #f44336;
+                }
+                
+                .fruit-power-item {
+                    position: relative;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    /**
+     * Initialize fruit power classes from config objects
+     */
+    _initializeFruits(fruitConfigs) {
+        const initializedFruits = [];
+        
+        for (const fruitConfig of fruitConfigs) {
+            let fruit;
+            
+            // Create the appropriate fruit class based on type
+            switch (fruitConfig.type) {
+                case 'flame':
+                    fruit = new FlameFruit(this.engine, fruitConfig);
+                    break;
+                case 'ice':
+                    fruit = new IceFruit(this.engine, fruitConfig);
+                    break;
+                case 'bomb':
+                    fruit = new BombFruit(this.engine, fruitConfig);
+                    break;
+                case 'light':
+                    fruit = new LightFruit(this.engine, fruitConfig);
+                    break;
+                case 'magma':
+                    fruit = new MagmaFruit(this.engine, fruitConfig);
+                    break;
+                default:
+                    console.warn(`Unknown fruit type: ${fruitConfig.type}`);
+                    continue;
+            }
+            
+            initializedFruits.push(fruit);
+        }
+        
+        return initializedFruits;
     }
     
     /**
@@ -197,6 +307,11 @@ export class Player extends Entity {
         const input = this.engine.input;
         const speed = this.speed * deltaTime;
         
+        // Check if math challenge is active - don't process movement if it is
+        if (this.mathChallengeActive) {
+            return;
+        }
+        
         // Get movement direction
         let moveX = 0;
         let moveZ = 0;
@@ -268,6 +383,11 @@ export class Player extends Entity {
             this._updateFruitUI();
         }
         
+        // Handle math challenge trigger with M key
+        if (input.isKeyPressed('KeyM')) {
+            this._startMathChallenge();
+        }
+        
         // Handle basic attack with space
         if (input.isKeyPressed('Space')) {
             this._useBasicAttack();
@@ -335,6 +455,17 @@ export class Player extends Entity {
         // Use fruit's basic attack
         const attackResult = fruit.useBasicAttack(attackStartPosition, direction);
         
+        // Check for direct hits on enemies
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (gameState && gameState.checkDirectAttackHits) {
+            // Check for enemies in a cone in front of the player
+            const attackRange = 5; // 5 units in front of the player
+            gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
+        }
+        
+        // Update UI to reflect updated uses count
+        this._updateFruitUI();
+        
         // Create visual feedback for attack
         this._createAttackEffect(attackStartPosition, direction, fruit.type);
         
@@ -380,6 +511,17 @@ export class Player extends Entity {
         
         // Use fruit's special attack
         const attackResult = fruit.useSpecialAttack(attackStartPosition, direction);
+        
+        // Check for direct hits on enemies
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (gameState && gameState.checkDirectAttackHits) {
+            // Special attacks have a wider range
+            const attackRange = 8; // 8 units in front of the player
+            gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
+        }
+        
+        // Update UI to reflect updated uses count
+        this._updateFruitUI();
         
         // Create visual feedback for special attack
         this._createSpecialAttackEffect(attackStartPosition, direction, fruit.type);
@@ -645,6 +787,348 @@ export class Player extends Entity {
         }
     }
     
+    /**
+     * Start a math challenge to get more fruit uses
+     */
+    _startMathChallenge() {
+        if (this.mathChallengeActive) return;
+        
+        // Get the active fruit
+        const fruit = this.getActiveFruit();
+        if (!fruit) return;
+        
+        this.mathChallengeActive = true;
+        
+        // Determine difficulty based on fruit power
+        const difficultyLevel = Math.min(Math.floor(fruit.power / 5), 3);
+        
+        // Generate a math problem based on difficulty
+        this.currentMathProblem = this._generateMathProblem(difficultyLevel);
+        
+        // Create the math challenge UI
+        this._createMathChallengeUI();
+    }
+    
+    /**
+     * Generate a math problem based on difficulty level
+     * 0 = Easy (single digit multiplication)
+     * 1 = Medium (double digit by single digit multiplication)
+     * 2 = Hard (double digit multiplication or simple division)
+     * 3 = Very Hard (more complex multiplication and division)
+     */
+    _generateMathProblem(difficultyLevel) {
+        let num1, num2, operation, answer;
+        
+        switch (difficultyLevel) {
+            case 0: // Easy
+                num1 = Math.floor(Math.random() * 9) + 1; // 1-9
+                num2 = Math.floor(Math.random() * 9) + 1; // 1-9
+                operation = "×";
+                answer = num1 * num2;
+                break;
+                
+            case 1: // Medium
+                num1 = Math.floor(Math.random() * 20) + 10; // 10-29
+                num2 = Math.floor(Math.random() * 9) + 1; // 1-9
+                operation = "×";
+                answer = num1 * num2;
+                break;
+                
+            case 2: // Hard
+                // 50% chance of multiplication or division
+                if (Math.random() < 0.5) {
+                    num1 = Math.floor(Math.random() * 40) + 10; // 10-49
+                    num2 = Math.floor(Math.random() * 9) + 1; // 1-9
+                    operation = "×";
+                    answer = num1 * num2;
+                } else {
+                    // Division where result is a whole number
+                    num2 = Math.floor(Math.random() * 9) + 1; // 1-9
+                    answer = Math.floor(Math.random() * 10) + 1; // 1-10
+                    num1 = num2 * answer;
+                    operation = "÷";
+                }
+                break;
+                
+            case 3: // Very Hard
+                // 50% chance of multiplication or division
+                if (Math.random() < 0.5) {
+                    num1 = Math.floor(Math.random() * 40) + 10; // 10-49
+                    num2 = Math.floor(Math.random() * 40) + 10; // 10-49
+                    operation = "×";
+                    answer = num1 * num2;
+                } else {
+                    // More complex division
+                    num2 = Math.floor(Math.random() * 12) + 2; // 2-13
+                    answer = Math.floor(Math.random() * 15) + 5; // 5-19
+                    num1 = num2 * answer;
+                    operation = "÷";
+                }
+                break;
+                
+            default: // Default to easy
+                num1 = Math.floor(Math.random() * 9) + 1;
+                num2 = Math.floor(Math.random() * 9) + 1;
+                operation = "×";
+                answer = num1 * num2;
+        }
+        
+        return {
+            num1,
+            num2,
+            operation,
+            answer,
+            difficultyLevel
+        };
+    }
+    
+    /**
+     * Create UI for the math challenge
+     */
+    _createMathChallengeUI() {
+        // Get the UI container
+        const uiContainer = document.getElementById('ui-container');
+        if (!uiContainer) return;
+        
+        // Get the active fruit
+        const fruit = this.getActiveFruit();
+        if (!fruit) return;
+        
+        // Create the challenge UI
+        this.mathChallengeUI = document.createElement('div');
+        this.mathChallengeUI.className = 'math-challenge-ui';
+        
+        const problem = this.currentMathProblem;
+        
+        // Create HTML content
+        this.mathChallengeUI.innerHTML = `
+            <div class="math-challenge-container">
+                <div class="math-challenge-header">
+                    <h2>Math Challenge for ${fruit.name}</h2>
+                    <p>Solve this problem to get ${this.mathRewardAmount} more uses!</p>
+                </div>
+                <div class="math-problem">
+                    <span class="math-number">${problem.num1}</span>
+                    <span class="math-operation">${problem.operation}</span>
+                    <span class="math-number">${problem.num2}</span>
+                    <span class="math-equals">=</span>
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" class="math-answer" placeholder="?">
+                </div>
+                <div class="math-controls">
+                    <button class="math-submit">Submit</button>
+                    <button class="math-cancel">Cancel</button>
+                </div>
+                <div class="math-result"></div>
+            </div>
+        `;
+        
+        // Add styling
+        const style = document.createElement('style');
+        style.textContent = `
+            .math-challenge-ui {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-color: rgba(0, 0, 0, 0.7);
+                z-index: 100;
+                pointer-events: auto;
+            }
+            
+            .math-challenge-container {
+                background-color: #fff;
+                border-radius: 10px;
+                padding: 20px;
+                width: 400px;
+                text-align: center;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            }
+            
+            .math-challenge-header h2 {
+                color: #333;
+                margin-top: 0;
+            }
+            
+            .math-problem {
+                font-size: 32px;
+                margin: 20px 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .math-number, .math-operation, .math-equals {
+                display: inline-block;
+                vertical-align: middle;
+            }
+            
+            .math-answer {
+                width: 80px;
+                height: 40px;
+                font-size: 24px;
+                text-align: center;
+                border: 2px solid #ccc;
+                border-radius: 5px;
+            }
+            
+            .math-controls {
+                margin-top: 20px;
+                display: flex;
+                justify-content: center;
+                gap: 10px;
+            }
+            
+            .math-submit, .math-cancel {
+                padding: 10px 20px;
+                font-size: 16px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            
+            .math-submit {
+                background-color: #4caf50;
+                color: white;
+            }
+            
+            .math-cancel {
+                background-color: #f44336;
+                color: white;
+            }
+            
+            .math-result {
+                margin-top: 15px;
+                font-size: 18px;
+                min-height: 24px;
+            }
+            
+            .math-result.success {
+                color: #4caf50;
+            }
+            
+            .math-result.error {
+                color: #f44336;
+            }
+        `;
+        
+        // Add to DOM
+        uiContainer.appendChild(style);
+        uiContainer.appendChild(this.mathChallengeUI);
+        
+        // Set up event listeners
+        const submitButton = this.mathChallengeUI.querySelector('.math-submit');
+        const cancelButton = this.mathChallengeUI.querySelector('.math-cancel');
+        const answerInput = this.mathChallengeUI.querySelector('.math-answer');
+        
+        // Auto-focus the input
+        setTimeout(() => {
+            answerInput.focus();
+        }, 100);
+        
+        // Submit on Enter key
+        answerInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this._checkMathAnswer();
+            }
+        });
+        
+        // Button handlers
+        submitButton.addEventListener('click', () => {
+            this._checkMathAnswer();
+        });
+        
+        cancelButton.addEventListener('click', () => {
+            this._cancelMathChallenge();
+        });
+    }
+    
+    /**
+     * Check the user's answer to the math problem
+     */
+    _checkMathAnswer() {
+        if (!this.mathChallengeUI || !this.currentMathProblem) return;
+        
+        const answerInput = this.mathChallengeUI.querySelector('.math-answer');
+        const resultDiv = this.mathChallengeUI.querySelector('.math-result');
+        
+        // Get user's answer - handling both empty and non-numeric inputs
+        const userAnswerText = answerInput.value.trim();
+        
+        // Check if input is empty
+        if (userAnswerText === '') {
+            resultDiv.textContent = 'Please enter an answer';
+            resultDiv.className = 'math-result error';
+            answerInput.focus();
+            return;
+        }
+        
+        // Convert to number and check if valid
+        const userAnswer = parseInt(userAnswerText, 10);
+        if (isNaN(userAnswer)) {
+            resultDiv.textContent = 'Please enter a valid number';
+            resultDiv.className = 'math-result error';
+            answerInput.value = '';
+            answerInput.focus();
+            return;
+        }
+        
+        // Check if it's correct
+        if (userAnswer === this.currentMathProblem.answer) {
+            // Correct answer
+            resultDiv.textContent = 'Correct! You earned more fruit uses.';
+            resultDiv.className = 'math-result success';
+            
+            // Get active fruit
+            const fruit = this.getActiveFruit();
+            if (fruit) {
+                // Add uses
+                fruit.addUses(this.mathRewardAmount);
+                
+                // Update UI
+                this._updateFruitUI();
+            }
+            
+            // Close after a delay
+            setTimeout(() => {
+                this._closeMathChallenge();
+            }, 1500);
+        } else {
+            // Wrong answer
+            resultDiv.textContent = 'Incorrect. Try again!';
+            resultDiv.className = 'math-result error';
+            
+            // Clear the input
+            answerInput.value = '';
+            answerInput.focus();
+        }
+    }
+    
+    /**
+     * Cancel the math challenge
+     */
+    _cancelMathChallenge() {
+        this._closeMathChallenge();
+    }
+    
+    /**
+     * Close the math challenge UI
+     */
+    _closeMathChallenge() {
+        if (this.mathChallengeUI && this.mathChallengeUI.parentNode) {
+            this.mathChallengeUI.parentNode.removeChild(this.mathChallengeUI);
+        }
+        
+        this.mathChallengeUI = null;
+        this.currentMathProblem = null;
+        this.mathChallengeActive = false;
+    }
+    
     destroy() {
         // Remove from scene
         if (this.object3D && this.object3D.parent) {
@@ -667,5 +1151,8 @@ export class Player extends Entity {
                 }
             });
         }
+        
+        // Clean up math challenge UI if it exists
+        this._closeMathChallenge();
     }
 }

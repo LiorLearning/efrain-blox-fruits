@@ -288,7 +288,6 @@ export class MenuState extends BaseState {
         const startButton = this.menuUI.querySelector('.start-button');
         if (startButton) {
             startButton.addEventListener('click', () => {
-                console.log('Start button clicked, navigating to fruit select screen');
                 this.engine.stateManager.changeState('fruitSelect');
             });
         }
@@ -347,7 +346,6 @@ export class MenuState extends BaseState {
                 }
                 
                 if (parent && parent.userData.isInteractive) {
-                    console.log(`Island clicked: ${parent.userData.islandId}`);
                     
                     // Start fruit selection screen
                     this.engine.stateManager.changeState('fruitSelect');

@@ -90,14 +90,12 @@ export class LoadingState extends BaseState {
      * Load game resources
      */
     loadResources(resources) {
-        console.log("Loading resources:", resources);
         
         // If there are no resources to load, simulate loading
         if (resources.textures.length === 0 && 
             resources.models.length === 0 && 
             resources.sounds.length === 0) {
                 
-            console.log("No resources to load, simulating loading progress");
             // Simulate loading progress
             let progress = 0;
             const interval = setInterval(() => {
@@ -114,12 +112,10 @@ export class LoadingState extends BaseState {
         }
         
         try {
-            console.log(`Starting to load ${resources.textures.length} textures, ${resources.models.length} models, and ${resources.sounds.length} sounds`);
             
             // Check if some resources may be missing and log it
             resources.textures.forEach(texture => {
                 const img = new Image();
-                img.onload = () => console.log(`Verified texture exists: ${texture.path}`);
                 img.onerror = () => console.error(`Texture does not exist: ${texture.path}`);
                 img.src = texture.path;
             });
@@ -127,7 +123,6 @@ export class LoadingState extends BaseState {
             // Load actual resources
             this.engine.resources.loadResources(resources)
                 .then(() => {
-                    console.log("Resources loaded successfully");
                     this.onComplete();
                 })
                 .catch(error => {
@@ -154,7 +149,6 @@ export class LoadingState extends BaseState {
             
             // Once minimum display time is reached, proceed to menu
             if (this.displayTimer >= this.minDisplayTime) {
-                console.log("Loading complete, transitioning to menu state");
                 this.engine.stateManager.changeState('menu');
             }
         }
@@ -187,7 +181,6 @@ export class LoadingState extends BaseState {
             this.loadingText.textContent = 'Loading complete!';
         }
         
-        console.log("Asset loading complete");
         
         // Mark assets as loaded
         this.assetsLoaded = true;
@@ -196,7 +189,6 @@ export class LoadingState extends BaseState {
         // This is a failsafe in case the regular transition doesn't happen
         setTimeout(() => {
             if (this.engine.stateManager.getCurrentState() === 'loading') {
-                console.log("Forcing transition to menu state");
                 this.engine.stateManager.changeState('menu');
             }
         }, 2000);

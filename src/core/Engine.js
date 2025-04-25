@@ -41,7 +41,6 @@ export class Engine {
      * Initialize the game engine
      */
     init() {
-        console.log('Initializing game engine...');
         
         // Transition to loading state
         this.stateManager.changeState('loading');
@@ -64,7 +63,6 @@ export class Engine {
         this.time.reset();
         this._gameLoop();
         
-        console.log('Game loop started');
     }
     
     /**
@@ -72,7 +70,6 @@ export class Engine {
      */
     stop() {
         this.isRunning = false;
-        console.log('Game loop stopped');
     }
     
     /**

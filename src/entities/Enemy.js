@@ -328,7 +328,10 @@ export class Enemy extends Entity {
      * Make the enemy take damage
      */
     takeDamage(amount) {
+        const oldHealth = this.health;
         this.health -= amount;
+        
+        console.log(`Enemy ${this.name} Health: ${oldHealth.toFixed(1)} -> ${this.health.toFixed(1)} (damage: ${amount.toFixed(1)})`);
         
         // Show hit effect
         this._showHitEffect();

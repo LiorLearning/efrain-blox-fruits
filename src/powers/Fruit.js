@@ -12,6 +12,9 @@ export class Fruit {
         this.attacks = options.attacks || [];
         this.cooldowns = {};
         
+        // Uses remaining for this fruit
+        this.usesRemaining = 1;
+        
         // Initialize cooldowns for all attacks
         this.attacks.forEach(attack => {
             this.cooldowns[attack] = 0;
@@ -39,9 +42,27 @@ export class Fruit {
      * Use a basic attack
      */
     useBasicAttack(position, direction) {
-        console.log(`Using basic attack for ${this.name}`);
+        // Check if we have any uses left
+        if (this.usesRemaining <= 0) {
+            console.log(`No uses remaining for ${this.name}`);
+            return false;
+        }
+        
+        // Decrement uses
+        this.usesRemaining--;
+        
+        console.log(`Using basic attack for ${this.name}. Uses remaining: ${this.usesRemaining}`);
         // Override in subclasses
         return false;
+    }
+    
+    /**
+     * Add more uses to this fruit
+     */
+    addUses(amount) {
+        this.usesRemaining += amount;
+        console.log(`Added ${amount} uses to ${this.name}. Now has ${this.usesRemaining} uses remaining.`);
+        return this.usesRemaining;
     }
     
     /**

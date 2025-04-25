@@ -243,6 +243,7 @@ export class GameplayState extends BaseState {
                     <p>WASD or Arrow Keys: Move</p>
                     <p>Space: Use Fruit Attack</p>
                     <p>1-5: Select Fruit</p>
+                    <p>M: Math Challenge for More Fruit Uses</p>
                     <p>Mouse to Edge: Pan Camera</p>
                 </div>
             </div>
@@ -483,6 +484,18 @@ export class GameplayState extends BaseState {
             }
         });
         
+        // Get all area effects in the scene
+        const areaEffects = [];
+        scene.traverse((object) => {
+            if (object.userData && 
+                object.userData.type && 
+                (object.userData.type === 'area' || 
+                 object.userData.type === 'inferno' ||
+                 object.userData.type === 'iceField')) {
+                areaEffects.push(object);
+            }
+        });
+        
         // Get all enemies including boss
         const enemies = [...this.enemies];
         if (this.boss) {
@@ -524,8 +537,37 @@ export class GameplayState extends BaseState {
                 if (distance < enemyRadius + projectileRadius) {
                     // Collision detected!
                     
+                    // Apply different damage based on enemy type
+                    let damage = projectile.userData.damage;
+                    
+                    // Check if it's a boss (check by name rather than instanceof)
+                    let percentText;
+                    if (enemy.name && enemy.name.includes('Boss')) {
+                        // Boss takes 10% of health as damage
+                        const percentDamage = enemy.health * 0.1;
+                        damage = Math.max(damage, percentDamage);
+                        console.log(`Boss hit! Taking ${damage.toFixed(1)} damage (10% of health)`);
+                        percentText = "10%";
+                        
+                        // Use percentage damage if it's greater than normal damage
+                        if (percentDamage > projectile.userData.damage) {
+                            this._showDamageText(enemy.getPosition(), "10% DAMAGE!", 0xff0000);
+                        }
+                    } else {
+                        // Regular villain takes 25% of health as damage
+                        const percentDamage = enemy.health * 0.25;
+                        damage = Math.max(damage, percentDamage);
+                        console.log(`Villain hit! Taking ${damage.toFixed(1)} damage (25% of health)`);
+                        percentText = "25%";
+                        
+                        // Use percentage damage if it's greater than normal damage
+                        if (percentDamage > projectile.userData.damage) {
+                            this._showDamageText(enemy.getPosition(), "25% DAMAGE!", 0xff0000);
+                        }
+                    }
+                    
                     // Deal damage to enemy
-                    enemy.takeDamage(projectile.userData.damage);
+                    enemy.takeDamage(damage);
                     
                     // Special effects based on projectile type
                     this.createHitEffect(projectile, enemy);
@@ -549,6 +591,139 @@ export class GameplayState extends BaseState {
                 }
             });
         });
+        
+        // Check each area effect against each enemy
+        areaEffects.forEach(effect => {
+            // Skip non-player effects
+            if (effect.userData.source !== 'player') return;
+            
+            // Get effect position and radius
+            const effectPos = effect.position;
+            const effectRadius = effect.userData.radius || 5;
+            
+            // Check against each enemy
+            enemies.forEach(enemy => {
+                // Skip inactive enemies
+                if (!enemy || !enemy.isActive) return;
+                
+                // Get enemy position
+                const enemyPos = enemy.getPosition();
+                if (!enemyPos) return;
+                
+                // Calculate distance between effect and enemy
+                const distance = Math.sqrt(
+                    Math.pow(effectPos.x - enemyPos.x, 2) + 
+                    Math.pow(effectPos.z - enemyPos.z, 2)
+                );
+                
+                // Check if enemy is within effect radius
+                if (distance < effectRadius) {
+                    // Enemy is in area effect range!
+                    
+                    // Apply different damage based on enemy type
+                    let damage = effect.userData.damage * this.engine.time.deltaTime; // Scale damage by time
+                    
+                    // Check if it's a boss
+                    if (enemy.name && enemy.name.includes('Boss')) {
+                        // Boss takes 10% of health as damage
+                        const percentDamage = enemy.health * 0.1 * this.engine.time.deltaTime;
+                        damage = Math.max(damage, percentDamage);
+                        
+                        // Use percentage damage if it's greater
+                        if (percentDamage > effect.userData.damage * this.engine.time.deltaTime) {
+                            this._showDamageText(enemy.getPosition(), "10%", 0xff0000);
+                        }
+                    } else {
+                        // Regular villain takes 25% of health as damage
+                        const percentDamage = enemy.health * 0.25 * this.engine.time.deltaTime;
+                        damage = Math.max(damage, percentDamage);
+                        
+                        // Use percentage damage if it's greater
+                        if (percentDamage > effect.userData.damage * this.engine.time.deltaTime) {
+                            this._showDamageText(enemy.getPosition(), "25%", 0xff0000);
+                        }
+                    }
+                    
+                    // Deal damage to enemy
+                    enemy.takeDamage(damage);
+                }
+            });
+        });
+    }
+    
+    /**
+     * Check for direct attacks against enemies in range
+     * Called when player uses a direct attack with a fruit
+     */
+    checkDirectAttackHits(position, range, damage, attackType) {
+        // Get all enemies including boss
+        const enemies = [...this.enemies];
+        if (this.boss) {
+            enemies.push(this.boss);
+        }
+        
+        let hitAny = false;
+        
+        // Check each enemy to see if they're in range
+        enemies.forEach(enemy => {
+            // Skip inactive enemies
+            if (!enemy || !enemy.isActive) return;
+            
+            // Get enemy position
+            const enemyPos = enemy.getPosition();
+            if (!enemyPos) return;
+            
+            // Calculate distance between attack position and enemy
+            const distance = Math.sqrt(
+                Math.pow(position.x - enemyPos.x, 2) + 
+                Math.pow(position.z - enemyPos.z, 2)
+            );
+            
+            // Check if enemy is within attack range
+            if (distance <= range) {
+                // Enemy is in attack range!
+                hitAny = true;
+                
+                // Apply different damage based on enemy type
+                let finalDamage = damage;
+                
+                // Check if it's a boss
+                if (enemy.name && enemy.name.includes('Boss')) {
+                    // Boss takes 10% of health as damage
+                    const percentDamage = enemy.health * 0.1;
+                    finalDamage = Math.max(damage, percentDamage);
+                    console.log(`Boss hit! Taking ${finalDamage.toFixed(1)} damage (10% of health)`);
+                    
+                    // Use percentage damage if it's greater than normal damage
+                    if (percentDamage > damage) {
+                        this._showDamageText(enemy.getPosition(), "10% DAMAGE!", 0xff0000);
+                    }
+                } else {
+                    // Regular villain takes 25% of health as damage
+                    const percentDamage = enemy.health * 0.25;
+                    finalDamage = Math.max(damage, percentDamage);
+                    console.log(`Villain hit! Taking ${finalDamage.toFixed(1)} damage (25% of health)`);
+                    
+                    // Use percentage damage if it's greater than normal damage
+                    if (percentDamage > damage) {
+                        this._showDamageText(enemy.getPosition(), "25% DAMAGE!", 0xff0000);
+                    }
+                }
+                
+                // Deal damage to enemy
+                enemy.takeDamage(finalDamage);
+                
+                // Create hit effect
+                const hitEffect = {
+                    userData: {
+                        type: attackType
+                    }
+                };
+                this.createHitEffect(hitEffect, enemy);
+            }
+        });
+        
+        return hitAny;
     }
     
     /**
@@ -613,6 +788,75 @@ export class GameplayState extends BaseState {
                 this.engine.renderer.scene.remove(hitEffect);
                 hitEffect.geometry.dispose();
                 hitEffect.material.dispose();
+            }
+        };
+        
+        // Start animation
+        animate();
+    }
+    
+    /**
+     * Show floating damage text above an enemy
+     */
+    _showDamageText(position, text, color = 0xff0000) {
+        if (!position) return;
+        
+        const scene = this.engine.renderer.scene;
+        if (!scene) return;
+        
+        // Create a canvas for the text
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 128;
+        
+        // Draw the text
+        context.font = 'bold 36px Arial';
+        context.fillStyle = '#' + color.toString(16).padStart(6, '0');
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+        
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        
+        // Create sprite with text
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 1.0
+        });
+        
+        const sprite = new THREE.Sprite(material);
+        sprite.position.set(position.x, position.y + 3.0, position.z); // Position above enemy
+        sprite.scale.set(3, 1.5, 1); // Scale for better visibility
+        
+        // Add to scene
+        scene.add(sprite);
+        
+        // Animate rising and fading
+        const startTime = Date.now();
+        const duration = 1500; // 1.5 seconds
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Rise up
+            sprite.position.y = position.y + 3.0 + progress * 2;
+            
+            // Fade out in the second half of the animation
+            if (progress > 0.5) {
+                sprite.material.opacity = 2 * (1 - progress);
+            }
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Remove when animation is complete
+                scene.remove(sprite);
+                sprite.material.map.dispose();
+                sprite.material.dispose();
             }
         };
         

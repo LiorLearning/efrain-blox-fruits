@@ -24,7 +24,6 @@ export class Resources {
    * Initialize the resource loaders
    */
   init() {
-      console.log('Initializing Resources manager');
       
       if (!window.THREE) {
           console.error('THREE.js not available when initializing Resources manager');
@@ -37,7 +36,6 @@ export class Resources {
       // Set up loading callbacks
       this.loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
           const progress = itemsLoaded / itemsTotal;
-          console.log(`Loading progress: ${Math.round(progress * 100)}% (${itemsLoaded}/${itemsTotal}) - ${url}`);
           
           // Update loading screen progress bar - using try/catch to avoid errors if element not available
           try {
@@ -55,7 +53,6 @@ export class Resources {
       };
       
       this.loadingManager.onLoad = () => {
-          console.log('All resources loaded successfully');
           
           if (this.onComplete) {
               this.onComplete();
@@ -72,22 +69,17 @@ export class Resources {
       
       // Create loaders
       this.textureLoader = new THREE.TextureLoader(this.loadingManager);
-      console.log('TextureLoader created');
       
       // Create GLTF loader if available
       if (window.THREE && THREE.GLTFLoader) {
           this.gltfLoader = new THREE.GLTFLoader(this.loadingManager);
-          console.log('GLTFLoader created');
       } else {
-          console.log('GLTFLoader not available');
       }
       
       // Create Audio loader if available
       if (window.THREE && THREE.AudioLoader) {
           this.audioLoader = new THREE.AudioLoader(this.loadingManager);
-          console.log('AudioLoader created');
       } else {
-          console.log('AudioLoader not available');
       }
   }
   
