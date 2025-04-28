@@ -1,12 +1,16 @@
-export default {
-  publicDir: 'assets',
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+
+export default defineConfig({
+  base: './',
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
+    assetsInlineLimit: 0,
     rollupOptions: {
       input: {
-        main: 'index.html'
+        main: resolve(__dirname, 'index.html'),
       }
     }
-  }
-}
+  },
+  publicDir: 'assets'
+});
