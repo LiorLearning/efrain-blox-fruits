@@ -614,7 +614,7 @@ export class GameplayState extends BaseState {
         }
         
         // Create some regular enemies at positions closer to the center of the island
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 3; i++) {
             const angle = Math.random() * Math.PI * 2;
             const radius = 8 + Math.random() * 6; // Reduced radius to bring enemies closer
             

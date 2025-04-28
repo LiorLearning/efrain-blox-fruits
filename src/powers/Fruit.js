@@ -9,7 +9,7 @@ export class Fruit {
         this.engine = engine;
         this.name = options.name || 'Unknown Fruit';
         this.type = options.type || 'unknown';
-        this.power = options.power || 5;
+        this.power = options.power || 25;
         this.attacks = options.attacks || [];
         
         // Store this fruit in the shared store if not already there

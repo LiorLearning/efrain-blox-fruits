@@ -11,7 +11,7 @@ export class FlameFruit extends Fruit {
         const flameOptions = {
             name: options.name || 'Flame Fruit',
             type: 'flame',
-            power: options.power || 20,
+            power: options.power || 40,
             attacks: ['Fireball', 'Flame Wave', 'Inferno'],
             ...options
         };

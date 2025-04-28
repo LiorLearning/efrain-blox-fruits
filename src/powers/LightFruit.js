@@ -11,7 +11,7 @@ export class LightFruit extends Fruit {
         const lightOptions = {
             name: options.name || 'Light Fruit',
             type: 'light',
-            power: options.power || 7,
+            power: options.power || 32,
             attacks: options.attacks || ['Light Beam', 'Flash Step', 'Solar Flare'],
             ...options
         };

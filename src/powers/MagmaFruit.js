@@ -10,7 +10,7 @@ export class MagmaFruit extends Fruit {
         super(engine, {
             name: 'Magma Fruit',
             type: 'magma',
-            power: options.power || 25,
+            power: options.power || 45,
             attacks: ['Magma Ball', 'Lava Field', 'Volcanic Eruption']
         });
     }

@@ -13,7 +13,7 @@ export class MiniBoss extends Entity {
         this.maxHealth = options.maxHealth || 200;
         this.speed = options.speed || 2;
         this.attackPower = options.attackPower || 25;
-        this.attackRange = options.attackRange || 10; // Increased attack range from 5 to 10 units
+        this.attackRange = options.attackRange || 4; // Increased attack range from 5 to 10 units
         
         // Boss abilities
         this.abilities = options.abilities || [];
@@ -325,7 +325,7 @@ export class MiniBoss extends Entity {
         const material = new THREE.MeshBasicMaterial({
             color: 0xff0000,
             transparent: true,
-            opacity: 0.5, // Increased opacity for better visibility
+            opacity: 0.3, // Lower opacity for better visibility
             side: THREE.DoubleSide,
             depthWrite: false
         });
@@ -348,10 +348,25 @@ export class MiniBoss extends Entity {
      * Update attack range indicator visibility based on player proximity
      */
     _updateRangeIndicator() {
-        // Range indicators are disabled for better gameplay experience
-        // If an indicator exists, make sure it's hidden
+        // Show range indicator
         if (this.rangeIndicator) {
-            this.rangeIndicator.visible = false;
+            // Create range indicator if it doesn't exist
+            if (!this.rangeIndicator) {
+                this._createRangeIndicator();
+            }
+            
+            // Make the indicator visible
+            this.rangeIndicator.visible = true;
+            
+            // Update indicator position to follow the boss
+            const pos = this.getPosition();
+            if (pos) {
+                this.rangeIndicator.position.x = pos.x;
+                this.rangeIndicator.position.z = pos.z;
+            }
+        } else {
+            // Create the indicator if it doesn't exist
+            this._createRangeIndicator();
         }
     }
     

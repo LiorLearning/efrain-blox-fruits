@@ -47,6 +47,11 @@ export class Player extends Entity {
         this.dangerSignElement = null;
         this.isInDanger = false;
         
+        // Damage timer system
+        this.damageTimer = 0;
+        this.damageThreshold = 5; // Seconds in enemy range before taking damage
+        this.inEnemyRange = false;
+        
         // Initialize player
         this._init();
     }
@@ -308,6 +313,14 @@ export class Player extends Entity {
             this.attackCooldown -= deltaTime;
         }
         
+        // Update damage timer if in enemy range
+        if (this.inEnemyRange) {
+            this.damageTimer += deltaTime;
+        } else {
+            // Reset damage timer if not in enemy range
+            this.damageTimer = 0;
+        }
+        
         // Check for fruit uses from math challenges (key "M")
         if (this.engine.input.isKeyPressed('KeyM') && !this.mathChallengeActive) {
             this._startMathChallenge();
@@ -476,41 +489,17 @@ export class Player extends Entity {
             position.z + direction.z * 1.5
         );
         
-        // Check if there are enemies in range BEFORE using attack
-        const gameState = this.engine.stateManager.getCurrentState();
-        const attackRange = 8; // Increased from 5 to 8 units in front of the player
+        // Set the attack range to be the same as enemy range (8)
+        const attackRange = 8; 
         
-        // Get all enemies
+        // Get all enemies from game state
+        const gameState = this.engine.stateManager.getCurrentState();
         const enemies = [];
         if (gameState.enemies && Array.isArray(gameState.enemies)) {
             enemies.push(...gameState.enemies.filter(enemy => enemy && enemy.isActive));
         }
         if (gameState.boss && gameState.boss.isActive) {
             enemies.push(gameState.boss);
-        }
-        
-        // Check if any enemies are within range
-        let enemyInRange = false;
-        for (const enemy of enemies) {
-            const enemyPos = enemy.getPosition();
-            if (!enemyPos) continue;
-            
-            // Calculate distance to enemy
-            const distance = Math.sqrt(
-                Math.pow(attackStartPosition.x - enemyPos.x, 2) + 
-                Math.pow(attackStartPosition.z - enemyPos.z, 2)
-            );
-            
-            if (distance <= attackRange) {
-                enemyInRange = true;
-                break;
-            }
-        }
-        
-        // Don't proceed with attack if no enemies in range
-        if (!enemyInRange) {
-            console.log("No enemies in range to attack!");
-            return false;
         }
         
         // Set cooldown
@@ -524,7 +513,7 @@ export class Player extends Entity {
         
         // Check if attack was successful
         if (attackResult) {
-            // Check for direct hits on enemies
+            // Always check for direct hits on enemies regardless of distance
             if (gameState && gameState.checkDirectAttackHits) {
                 const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
             }
@@ -596,41 +585,17 @@ export class Player extends Entity {
             position.z + direction.z * 1.5
         );
         
-        // Check if there are enemies in range BEFORE using attack
-        const gameState = this.engine.stateManager.getCurrentState();
-        const attackRange = 12; // Increased from 8 to 12 units for special attacks
+        // Special attack has longer range than basic attack
+        const attackRange = 12; 
         
-        // Get all enemies
+        // Get all enemies from game state
+        const gameState = this.engine.stateManager.getCurrentState();
         const enemies = [];
         if (gameState.enemies && Array.isArray(gameState.enemies)) {
             enemies.push(...gameState.enemies.filter(enemy => enemy && enemy.isActive));
         }
         if (gameState.boss && gameState.boss.isActive) {
             enemies.push(gameState.boss);
-        }
-        
-        // Check if any enemies are within range
-        let enemyInRange = false;
-        for (const enemy of enemies) {
-            const enemyPos = enemy.getPosition();
-            if (!enemyPos) continue;
-            
-            // Calculate distance to enemy
-            const distance = Math.sqrt(
-                Math.pow(attackStartPosition.x - enemyPos.x, 2) + 
-                Math.pow(attackStartPosition.z - enemyPos.z, 2)
-            );
-            
-            if (distance <= attackRange) {
-                enemyInRange = true;
-                break;
-            }
-        }
-        
-        // Don't proceed with attack if no enemies in range
-        if (!enemyInRange) {
-            console.log("No enemies in range to attack!");
-            return false;
         }
         
         // Set cooldown
@@ -644,7 +609,7 @@ export class Player extends Entity {
         
         // Check if attack was successful
         if (attackResult) {
-            // Check for direct hits on enemies
+            // Always check for direct hits on enemies regardless of distance
             if (gameState && gameState.checkDirectAttackHits) {
                 const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
             }
@@ -707,6 +672,12 @@ export class Player extends Entity {
      * Take damage
      */
     takeDamage(amount) {
+        // Only apply damage if damage timer has reached threshold
+        if (this.inEnemyRange && this.damageTimer < this.damageThreshold) {
+            console.log(`Player in danger zone for ${this.damageTimer.toFixed(1)}s of ${this.damageThreshold}s required`);
+            return this.health;
+        }
+        
         console.log(`Player takes ${amount} damage!`);
         
         // Store original health for logging
@@ -717,6 +688,9 @@ export class Player extends Entity {
         if (this.health < 0) this.health = 0;
         
         console.log(`Player Health: ${oldHealth.toFixed(1)} -> ${this.health.toFixed(1)} (damage: ${amount.toFixed(1)})`);
+        
+        // Reset damage timer after damage is applied
+        this.damageTimer = 0;
         
         // Create visual hit effect
         this._showHitEffect();
@@ -894,6 +868,8 @@ export class Player extends Entity {
 
         // Track if player is in danger from any enemy
         let playerInDanger = false;
+        // Track if player is in enemy attack range
+        let inEnemyRange = false;
         
         // Check proximity to regular enemies
         if (gameState.enemies && Array.isArray(gameState.enemies)) {
@@ -923,6 +899,7 @@ export class Player extends Entity {
                     // Mark player as in danger if very close (based on attack range)
                     if (distance <= enemy.attackRange) {
                         playerInDanger = true;
+                        inEnemyRange = true;
                     }
                 }
             });
@@ -954,16 +931,27 @@ export class Player extends Entity {
                         // Mark player as in danger if very close to boss (based on attack range)
                         if (distance <= boss.attackRange) {
                             playerInDanger = true;
+                            inEnemyRange = true;
                         }
                     }
                 }
             }
         }
         
-        // Update danger sign based on proximity
-        if (playerInDanger !== this.isInDanger) {
-            this.isInDanger = playerInDanger;
-            this._updateDangerSign(playerInDanger);
+        // Update enemy range state
+        this.inEnemyRange = inEnemyRange;
+        
+        // Update danger sign based on proximity and damage timer
+        let showDangerSign = playerInDanger;
+        
+        // Show more urgent danger if timer is close to threshold
+        if (inEnemyRange && this.damageTimer > 3) {
+            showDangerSign = true;
+        }
+        
+        if (showDangerSign !== this.isInDanger) {
+            this.isInDanger = showDangerSign;
+            this._updateDangerSign(showDangerSign);
         }
     }
     
@@ -1484,6 +1472,47 @@ export class Player extends Entity {
         
         if (isInDanger) {
             this.dangerSignElement.classList.add('visible');
+            
+            // Add timer indicator if in enemy range and timer is active
+            if (this.inEnemyRange && this.damageTimer > 0) {
+                const percentComplete = Math.min((this.damageTimer / this.damageThreshold) * 100, 100);
+                this.dangerSignElement.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>DANGER</span>
+                    <div class="danger-timer">
+                        <div class="danger-timer-fill" style="width: ${percentComplete}%"></div>
+                    </div>
+                `;
+                
+                // Add danger timer style if it doesn't exist yet
+                if (!document.querySelector('#danger-timer-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'danger-timer-style';
+                    style.textContent = `
+                        .danger-timer {
+                            width: 100%;
+                            height: 6px;
+                            background-color: rgba(255, 255, 255, 0.3);
+                            border-radius: 3px;
+                            margin-top: 5px;
+                            overflow: hidden;
+                        }
+                        
+                        .danger-timer-fill {
+                            height: 100%;
+                            background-color: white;
+                            width: 0%;
+                            transition: width 0.1s linear;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            } else {
+                this.dangerSignElement.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>DANGER</span>
+                `;
+            }
         } else {
             this.dangerSignElement.classList.remove('visible');
         }
