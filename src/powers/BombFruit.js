@@ -24,41 +24,6 @@ export class BombFruit extends Fruit {
     useBasicAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Bomb Toss', position, direction, (pos, dir) => {
-            // Create a bomb projectile
-            const bomb = this.createProjectile(pos, dir, {
-                geometry: new THREE.SphereGeometry(0.4, 8, 8),
-                material: new THREE.MeshBasicMaterial({
-                    color: 0x202020, // Dark gray
-                    transparent: false,
-                    opacity: 1.0
-                }),
-                speed: 12,
-                damage: this.power * 1.2,
-                lifetime: 2,
-                type: 'bomb'
-            });
-            
-            if (bomb) {
-                // Add trajectory arc (bombs are affected by gravity)
-                const originalUpdate = bomb.userData.update;
-                bomb.userData.update = function(deltaTime) {
-                    // Apply gravity
-                    this.userData.direction.y -= 9.8 * deltaTime;
-                    
-                    // Call the original update
-                    const result = originalUpdate(deltaTime);
-                    
-                    // Check if hit ground
-                    if (this.position.y <= 0.1) {
-                        this.position.y = 0.1; // Keep slightly above ground
-                        this.parent.remove(this);
-                        return false;
-                    }
-                    
-                    return result;
-                }.bind(bomb);
-            }
-            
             // Set cooldown
             this.cooldowns['Bomb Toss'] = 1.5; // 1.5 second cooldown
             

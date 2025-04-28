@@ -119,13 +119,6 @@ export class Player extends Entity {
             activeItem.classList.add('active');
         }
         
-        // Log all fruits and their uses
-        console.log("==== ALL FRUIT COUNTS ====");
-        this.fruits.forEach((fruit, idx) => {
-            console.log(`Fruit ${idx+1}: ${fruit.name} - Uses remaining: ${fruit.usesRemaining}`);
-        });
-        console.log("=========================");
-        
         // Update uses count for all fruits
         fruitItems.forEach((item, index) => {
             if (index < this.fruits.length) {
@@ -448,12 +441,6 @@ export class Player extends Entity {
             return;
         }
         
-        // Set cooldown
-        this.attackCooldown = this.attackCooldownTime;
-        
-        // Log fruit uses before attack
-        console.log(`BEFORE ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
-        
         // Get player position and direction
         const position = this.getPosition();
         
@@ -478,22 +465,57 @@ export class Player extends Entity {
             position.z + direction.z * 1.5
         );
         
+        // Check if there are enemies in range BEFORE using attack
+        const gameState = this.engine.stateManager.getCurrentState();
+        const attackRange = 5; // 5 units in front of the player
+        
+        // Get all enemies
+        const enemies = [];
+        if (gameState.enemies && Array.isArray(gameState.enemies)) {
+            enemies.push(...gameState.enemies.filter(enemy => enemy && enemy.isActive));
+        }
+        if (gameState.boss && gameState.boss.isActive) {
+            enemies.push(gameState.boss);
+        }
+        
+        // Check if any enemies are within range
+        let enemyInRange = false;
+        for (const enemy of enemies) {
+            const enemyPos = enemy.getPosition();
+            if (!enemyPos) continue;
+            
+            // Calculate distance to enemy
+            const distance = Math.sqrt(
+                Math.pow(attackStartPosition.x - enemyPos.x, 2) + 
+                Math.pow(attackStartPosition.z - enemyPos.z, 2)
+            );
+            
+            if (distance <= attackRange) {
+                enemyInRange = true;
+                break;
+            }
+        }
+        
+        // Don't proceed with attack if no enemies in range
+        if (!enemyInRange) {
+            console.log("No enemies in range to attack!");
+            return false;
+        }
+        
+        // Set cooldown
+        this.attackCooldown = this.attackCooldownTime;
+        
+        // Log fruit uses before attack
+        console.log(`BEFORE ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
+        
         // Use fruit's basic attack
         const attackResult = fruit.useBasicAttack(attackStartPosition, direction);
         
         // Check if attack was successful
         if (attackResult) {
-            // Log fruit uses after attack
-            console.log(`AFTER ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
-            
             // Check for direct hits on enemies
-            const gameState = this.engine.stateManager.getCurrentState();
             if (gameState && gameState.checkDirectAttackHits) {
-                // Check for enemies in a cone in front of the player
-                const attackRange = 5; // 5 units in front of the player
-                console.log(`Checking for enemies in range: ${attackRange}`);
                 const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
-                console.log(`Hit any enemies: ${hitAny}`);
             }
             
             // Create visual feedback for attack
@@ -539,12 +561,6 @@ export class Player extends Entity {
             return;
         }
         
-        // Set cooldown
-        this.attackCooldown = this.attackCooldownTime;
-        
-        // Log fruit uses before attack
-        console.log(`BEFORE SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
-        
         // Get player position and direction
         const position = this.getPosition();
         
@@ -569,26 +585,61 @@ export class Player extends Entity {
             position.z + direction.z * 1.5
         );
         
+        // Check if there are enemies in range BEFORE using attack
+        const gameState = this.engine.stateManager.getCurrentState();
+        const attackRange = 8; // Special attacks have wider range (8 units)
+        
+        // Get all enemies
+        const enemies = [];
+        if (gameState.enemies && Array.isArray(gameState.enemies)) {
+            enemies.push(...gameState.enemies.filter(enemy => enemy && enemy.isActive));
+        }
+        if (gameState.boss && gameState.boss.isActive) {
+            enemies.push(gameState.boss);
+        }
+        
+        // Check if any enemies are within range
+        let enemyInRange = false;
+        for (const enemy of enemies) {
+            const enemyPos = enemy.getPosition();
+            if (!enemyPos) continue;
+            
+            // Calculate distance to enemy
+            const distance = Math.sqrt(
+                Math.pow(attackStartPosition.x - enemyPos.x, 2) + 
+                Math.pow(attackStartPosition.z - enemyPos.z, 2)
+            );
+            
+            if (distance <= attackRange) {
+                enemyInRange = true;
+                break;
+            }
+        }
+        
+        // Don't proceed with attack if no enemies in range
+        if (!enemyInRange) {
+            console.log("No enemies in range to attack!");
+            return false;
+        }
+        
+        // Set cooldown
+        this.attackCooldown = this.attackCooldownTime;
+        
+        // Log fruit uses before attack
+        console.log(`BEFORE SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
+        
         // Use fruit's special attack
         const attackResult = fruit.useSpecialAttack(attackStartPosition, direction);
         
         // Check if attack was successful
         if (attackResult) {
-            // Log fruit uses after attack
-            console.log(`AFTER SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
-            
             // Check for direct hits on enemies
-            const gameState = this.engine.stateManager.getCurrentState();
             if (gameState && gameState.checkDirectAttackHits) {
-                // Special attacks have a wider range
-                const attackRange = 8; // 8 units in front of the player
-                console.log(`Checking for enemies in range: ${attackRange}`);
                 const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
-                console.log(`Hit any enemies: ${hitAny}`);
             }
             
             // Create visual feedback for special attack
-            this._createSpecialAttackEffect(attackStartPosition, direction, fruit.type);
+            // this._createSpecialAttackEffect(attackStartPosition, direction, fruit.type);
         }
         
         // Update UI to reflect updated uses count
@@ -601,131 +652,14 @@ export class Player extends Entity {
      * Create visual effect for basic attack
      */
     _createAttackEffect(position, direction, fruitType) {
-        // Create effect based on fruit type
-        let color = 0xffffff; // Default color
-        
-        switch(fruitType) {
-            case 'flame':
-                color = 0xff4400; // Orange/red for flame
-                break;
-            case 'ice':
-                color = 0x00ddff; // Light blue for ice
-                break;
-            case 'light':
-                color = 0xffff00; // Yellow for light
-                break;
-            case 'bomb':
-                color = 0x888888; // Gray for bomb
-                break;
-            case 'magma':
-                color = 0xff0000; // Red for magma
-                break;
-        }
-        
-        // Create a small flash effect
-        const geometry = new THREE.SphereGeometry(0.5, 8, 8);
-        const material = new THREE.MeshBasicMaterial({ 
-            color: color,
-            transparent: true,
-            opacity: 0.8
-        });
-        
-        const flashEffect = new THREE.Mesh(geometry, material);
-        flashEffect.position.copy(position);
-        
-        // Add to scene
-        this.engine.renderer.scene.add(flashEffect);
-        
-        // Animate the flash effect
-        const startTime = Date.now();
-        const duration = 200; // ms
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Scale up and fade out
-            flashEffect.scale.set(1 + progress * 2, 1 + progress * 2, 1 + progress * 2);
-            flashEffect.material.opacity = 0.8 * (1 - progress);
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                // Remove effect when animation is complete
-                this.engine.renderer.scene.remove(flashEffect);
-                flashEffect.geometry.dispose();
-                flashEffect.material.dispose();
-            }
-        };
-        
-        // Start animation
-        animate();
+        // Method intentionally left empty to hide attack effects
     }
     
     /**
      * Create visual effect for special attack
      */
     _createSpecialAttackEffect(position, direction, fruitType) {
-        // Create more dramatic effect based on fruit type
-        let color = 0xffffff; // Default color
-        
-        switch(fruitType) {
-            case 'flame':
-                color = 0xff4400; // Orange/red for flame
-                break;
-            case 'ice':
-                color = 0x00ddff; // Light blue for ice
-                break;
-            case 'light':
-                color = 0xffff00; // Yellow for light
-                break;
-            case 'bomb':
-                color = 0x888888; // Gray for bomb
-                break;
-            case 'magma':
-                color = 0xff0000; // Red for magma
-                break;
-        }
-        
-        // Create a larger flash effect
-        const geometry = new THREE.SphereGeometry(1.0, 12, 12);
-        const material = new THREE.MeshBasicMaterial({ 
-            color: color,
-            transparent: true,
-            opacity: 0.9
-        });
-        
-        const flashEffect = new THREE.Mesh(geometry, material);
-        flashEffect.position.copy(position);
-        
-        // Add to scene
-        this.engine.renderer.scene.add(flashEffect);
-        
-        // Animate the flash effect
-        const startTime = Date.now();
-        const duration = 500; // ms
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Scale up and fade out with waves
-            const wave = Math.sin(progress * Math.PI * 4) * 0.2 + 0.8;
-            flashEffect.scale.set(1 + progress * 4 * wave, 1 + progress * 4 * wave, 1 + progress * 4 * wave);
-            flashEffect.material.opacity = 0.9 * (1 - progress);
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                // Remove effect when animation is complete
-                this.engine.renderer.scene.remove(flashEffect);
-                flashEffect.geometry.dispose();
-                flashEffect.material.dispose();
-            }
-        };
-        
-        // Start animation
-        animate();
+        // Method intentionally left empty to hide attack effects
     }
     
     /**
@@ -868,27 +802,27 @@ export class Player extends Entity {
      * Update health UI if available
      */
     _updateHealthUI() {
-        // Find health UI element
-        const healthBar = document.getElementById('player-health-bar');
-        if (healthBar) {
+        // Find health UI element using the correct class
+        const healthFill = document.querySelector('.health-fill');
+        if (healthFill) {
             // Update health bar width
             const healthPercent = this.getHealthPercentage();
-            healthBar.style.width = `${healthPercent}%`;
+            healthFill.style.width = `${healthPercent}%`;
             
             // Change color based on health level
             if (healthPercent < 20) {
-                healthBar.style.backgroundColor = '#f44336'; // Red
+                healthFill.style.backgroundColor = '#f44336'; // Red
             } else if (healthPercent < 50) {
-                healthBar.style.backgroundColor = '#ff9800'; // Orange
+                healthFill.style.backgroundColor = '#ff9800'; // Orange
             } else {
-                healthBar.style.backgroundColor = '#4caf50'; // Green
+                healthFill.style.backgroundColor = '#4caf50'; // Green
             }
         }
         
-        // Update health text if it exists
-        const healthText = document.getElementById('player-health-text');
-        if (healthText) {
-            healthText.textContent = `${Math.ceil(this.health)} / ${this.maxHealth}`;
+        // Update player name element to show health text if it exists
+        const playerName = document.querySelector('.player-name');
+        if (playerName) {
+            playerName.textContent = `Efrain: ${Math.ceil(this.health)} / ${this.maxHealth}`;
         }
     }
     

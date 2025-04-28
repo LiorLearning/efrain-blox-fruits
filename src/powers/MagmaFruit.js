@@ -20,22 +20,8 @@ export class MagmaFruit extends Fruit {
     useBasicAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Magma Ball', position, direction, (pos, dir) => {
-            // Create a magma ball projectile
-            const magmaBall = this.createProjectile(pos, dir, {
-                geometry: new THREE.SphereGeometry(0.6, 12, 12),
-                material: new THREE.MeshBasicMaterial({
-                    color: 0xff2200, // Bright red
-                    transparent: true,
-                    opacity: 0.9
-                }),
-                speed: 12,
-                damage: this.power * 1.2,
-                type: 'magmaBall'
-            });
-            
             // Set cooldown
             this.cooldowns['Magma Ball'] = 1.2; // 1.2 second cooldown
-            
             return true;
         });
     }

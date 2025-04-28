@@ -127,8 +127,11 @@ export class MiniBoss extends Entity {
         
         // Update foreground width based on health percentage
         this.healthBar.foreground.scale.x = healthPercent;
-        // Move the pivot point to the left
-        this.healthBar.foreground.position.x = (healthPercent - 1) * 1.0;
+        
+        // Position correction - move the center of the bar based on scaling
+        // When scale is less than 1, center the bar by offsetting by half the difference
+        const offsetX = (1 - healthPercent) * 1.0;
+        this.healthBar.foreground.position.x = -offsetX;
         
         // Update color based on health (red to yellow to green)
         if (healthPercent > 0.6) {
