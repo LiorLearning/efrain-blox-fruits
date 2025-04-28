@@ -22,6 +22,20 @@ export class Enemy extends Entity {
         this.isActive = true;
         this.currentState = 'idle'; // idle, patrol, chase, attack
         
+        // Patrol settings
+        this.patrolRadius = options.patrolRadius || 5;
+        this.patrolSpeed = options.patrolSpeed || this.speed * 0.5;
+        this.patrolTarget = null;
+        
+        // Attack settings
+        this.attackCooldown = 0;
+        this.attackCooldownTime = 2; // seconds
+        
+        // Player proximity timer for delayed attacks
+        this.playerProximityTimer = 0;
+        this.attackDelay = 2; // 2 seconds before attacking after player enters range
+        this.playerInRange = false;
+        
         // Attack range visualization
         this.rangeIndicator = null;
         
@@ -197,6 +211,9 @@ export class Enemy extends Entity {
     update(deltaTime) {
         if (!this.isActive) return;
         
+        // Check player proximity on every update to determine if they're in range
+        this._checkPlayerProximity();
+        
         // Update enemy behavior based on current state
         switch (this.currentState) {
             case 'idle':
@@ -218,6 +235,66 @@ export class Enemy extends Entity {
         
         // Make health bar face the camera
         this._updateHealthBarOrientation();
+        
+        // Update attack cooldown
+        if (this.attackCooldown > 0) {
+            this.attackCooldown -= deltaTime;
+            if (this.attackCooldown < 0) {
+                this.attackCooldown = 0;
+            }
+        }
+        
+        // Update player proximity timer if player is in range
+        if (this.playerInRange) {
+            this.playerProximityTimer += deltaTime;
+            
+            // If timer exceeds delay and we're close enough to attack, switch to attack state
+            if (this.playerProximityTimer >= this.attackDelay && this.currentState !== 'attack') {
+                this.currentState = 'attack';
+                console.log(`${this.name} is attacking player after waiting ${this.playerProximityTimer.toFixed(2)}s!`);
+                this._performAttack();
+            }
+        } else {
+            // Reset timer if player is not in range
+            this.playerProximityTimer = 0;
+            
+            // If we were attacking, go back to chase or idle
+            if (this.currentState === 'attack') {
+                this.currentState = 'chase';
+            }
+        }
+    }
+    
+    /**
+     * Check if player is within attack range
+     */
+    _checkPlayerProximity() {
+        // Get the game state to access player
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (!gameState || !gameState.player) return;
+        
+        const player = gameState.player;
+        const playerPos = player.getPosition();
+        const enemyPos = this.getPosition();
+        
+        if (!playerPos || !enemyPos) return;
+        
+        // Calculate distance to player
+        const distance = Math.sqrt(
+            Math.pow(playerPos.x - enemyPos.x, 2) + 
+            Math.pow(playerPos.z - enemyPos.z, 2)
+        );
+        
+        // Update playerInRange flag based on distance
+        const wasInRange = this.playerInRange;
+        this.playerInRange = (distance <= this.attackRange);
+        
+        // Log when player enters/exits range
+        if (this.playerInRange && !wasInRange) {
+            console.log(`Player entered ${this.name}'s attack range`);
+        } else if (!this.playerInRange && wasInRange) {
+            console.log(`Player left ${this.name}'s attack range - resetting timer`);
+        }
     }
     
     /**
@@ -321,7 +398,90 @@ export class Enemy extends Entity {
      * Update attack behavior
      */
     _updateAttack(deltaTime) {
-        // Attack the player
+        // If player is no longer in range (this is now checked in _checkPlayerProximity)
+        if (!this.playerInRange) {
+            this.currentState = 'chase';
+            return;
+        }
+        
+        // If we can attack again (cooldown is over)
+        if (this.attackCooldown <= 0) {
+            this._performAttack();
+        }
+    }
+    
+    /**
+     * Perform an attack against the player
+     */
+    _performAttack() {
+        console.log(`${this.name} attacks player!`);
+        
+        // Get the game state to access player
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (!gameState || !gameState.player) return;
+        
+        // Check if player has been in range for at least 2 seconds
+        if (this.playerProximityTimer >= this.attackDelay) {
+            console.log(`${this.name} is dealing damage after ${this.playerProximityTimer.toFixed(2)}s of proximity!`);
+            
+            // Deal damage to player
+            gameState.player.takeDamage(this.attackPower);
+            
+            // Create attack effect
+            const playerPos = gameState.player.getPosition();
+            if (playerPos) {
+                this._createAttackEffect(playerPos);
+            }
+        } else {
+            console.log(`${this.name} attempted attack but player hasn't been in range long enough (${this.playerProximityTimer.toFixed(2)}s)`);
+        }
+        
+        // Set attack cooldown
+        this.attackCooldown = this.attackCooldownTime;
+    }
+    
+    /**
+     * Create visual effect for attack
+     */
+    _createAttackEffect(targetPos) {
+        // Create a simple attack effect
+        const geometry = new THREE.SphereGeometry(0.5, 8, 8);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.7
+        });
+        
+        const attackEffect = new THREE.Mesh(geometry, material);
+        attackEffect.position.set(targetPos.x, targetPos.y + 1, targetPos.z);
+        
+        // Add to scene
+        this.engine.renderer.scene.add(attackEffect);
+        
+        // Animate effect
+        const startTime = Date.now();
+        const duration = 300; // ms
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Scale effect
+            attackEffect.scale.set(1 + progress, 1 + progress, 1 + progress);
+            attackEffect.material.opacity = 0.7 * (1 - progress);
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Remove effect when animation is complete
+                this.engine.renderer.scene.remove(attackEffect);
+                attackEffect.geometry.dispose();
+                attackEffect.material.dispose();
+            }
+        };
+        
+        // Start animation
+        animate();
     }
     
     /**
@@ -532,13 +692,20 @@ export class Enemy extends Entity {
      * Handle player being nearby
      */
     onPlayerNearby(distance) {
-        // If the player is within attack range, start chasing/attacking
+        // If the player is within attack range, start tracking time
         if (distance <= this.attackRange * 1.2) {
-            // Switch to chase/attack mode
+            // Switch to chase mode if not already chasing or attacking
             if (this.currentState !== 'chase' && this.currentState !== 'attack') {
                 this.currentState = 'chase';
                 console.log(`${this.name} is now chasing player!`);
             }
+            
+            // Mark player as in range to start the timer
+            this.playerInRange = true;
+        } else {
+            // Player is out of range
+            this.playerInRange = false;
+            this.playerProximityTimer = 0;
         }
         
         // Always show range indicator when player is nearby

@@ -435,15 +435,21 @@ export class Player extends Entity {
         
         console.log("BASIC ATTACK TRIGGERED!");
         
-        // Set cooldown
-        this.attackCooldown = this.attackCooldownTime;
-        
         // Get active fruit
         const fruit = this.getActiveFruit();
         if (!fruit) {
             console.log("No active fruit found!");
             return;
         }
+        
+        // Check if fruit has uses remaining
+        if (fruit.usesRemaining <= 0) {
+            console.log(`No uses remaining for ${fruit.name}`);
+            return;
+        }
+        
+        // Set cooldown
+        this.attackCooldown = this.attackCooldownTime;
         
         // Log fruit uses before attack
         console.log(`BEFORE ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
@@ -475,26 +481,29 @@ export class Player extends Entity {
         // Use fruit's basic attack
         const attackResult = fruit.useBasicAttack(attackStartPosition, direction);
         
-        // Log fruit uses after attack
-        console.log(`AFTER ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
-        
-        // Check for direct hits on enemies
-        const gameState = this.engine.stateManager.getCurrentState();
-        if (gameState && gameState.checkDirectAttackHits) {
-            // Check for enemies in a cone in front of the player
-            const attackRange = 5; // 5 units in front of the player
-            console.log(`Checking for enemies in range: ${attackRange}`);
-            const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
-            console.log(`Hit any enemies: ${hitAny}`);
+        // Check if attack was successful
+        if (attackResult) {
+            // Log fruit uses after attack
+            console.log(`AFTER ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
+            
+            // Check for direct hits on enemies
+            const gameState = this.engine.stateManager.getCurrentState();
+            if (gameState && gameState.checkDirectAttackHits) {
+                // Check for enemies in a cone in front of the player
+                const attackRange = 5; // 5 units in front of the player
+                console.log(`Checking for enemies in range: ${attackRange}`);
+                const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
+                console.log(`Hit any enemies: ${hitAny}`);
+            }
+            
+            // Create visual feedback for attack
+            this._createAttackEffect(attackStartPosition, direction, fruit.type);
         }
         
         // Force immediate UI update to reflect updated uses count
         setTimeout(() => {
             this._updateFruitUI();
         }, 0);
-        
-        // Create visual feedback for attack
-        this._createAttackEffect(attackStartPosition, direction, fruit.type);
         
         return attackResult;
     }
@@ -511,9 +520,6 @@ export class Player extends Entity {
         
         console.log("SPECIAL ATTACK TRIGGERED!");
         
-        // Set cooldown
-        this.attackCooldown = this.attackCooldownTime;
-        
         // Get active fruit
         const fruit = this.getActiveFruit();
         if (!fruit) {
@@ -521,14 +527,23 @@ export class Player extends Entity {
             return;
         }
         
-        // Log fruit uses before attack
-        console.log(`BEFORE SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
+        // Check if fruit has uses remaining
+        if (fruit.usesRemaining <= 0) {
+            console.log(`No uses remaining for ${fruit.name}`);
+            return;
+        }
         
         // Check if the special attack is on cooldown
         if (fruit.isOnCooldown('special')) {
             console.log(`Special attack for ${fruit.name} is on cooldown`);
             return;
         }
+        
+        // Set cooldown
+        this.attackCooldown = this.attackCooldownTime;
+        
+        // Log fruit uses before attack
+        console.log(`BEFORE SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
         
         // Get player position and direction
         const position = this.getPosition();
@@ -557,24 +572,27 @@ export class Player extends Entity {
         // Use fruit's special attack
         const attackResult = fruit.useSpecialAttack(attackStartPosition, direction);
         
-        // Log fruit uses after attack
-        console.log(`AFTER SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
-        
-        // Check for direct hits on enemies
-        const gameState = this.engine.stateManager.getCurrentState();
-        if (gameState && gameState.checkDirectAttackHits) {
-            // Special attacks have a wider range
-            const attackRange = 8; // 8 units in front of the player
-            console.log(`Checking for enemies in range: ${attackRange}`);
-            const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
-            console.log(`Hit any enemies: ${hitAny}`);
+        // Check if attack was successful
+        if (attackResult) {
+            // Log fruit uses after attack
+            console.log(`AFTER SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
+            
+            // Check for direct hits on enemies
+            const gameState = this.engine.stateManager.getCurrentState();
+            if (gameState && gameState.checkDirectAttackHits) {
+                // Special attacks have a wider range
+                const attackRange = 8; // 8 units in front of the player
+                console.log(`Checking for enemies in range: ${attackRange}`);
+                const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
+                console.log(`Hit any enemies: ${hitAny}`);
+            }
+            
+            // Create visual feedback for special attack
+            this._createSpecialAttackEffect(attackStartPosition, direction, fruit.type);
         }
         
         // Update UI to reflect updated uses count
         this._updateFruitUI();
-        
-        // Create visual feedback for special attack
-        this._createSpecialAttackEffect(attackStartPosition, direction, fruit.type);
         
         return attackResult;
     }
@@ -740,9 +758,138 @@ export class Player extends Entity {
      * Take damage
      */
     takeDamage(amount) {
+        console.log(`Player takes ${amount} damage!`);
+        
+        // Store original health for logging
+        const oldHealth = this.health;
+        
+        // Apply damage
         this.health -= amount;
         if (this.health < 0) this.health = 0;
+        
+        console.log(`Player Health: ${oldHealth.toFixed(1)} -> ${this.health.toFixed(1)} (damage: ${amount.toFixed(1)})`);
+        
+        // Create visual hit effect
+        this._showHitEffect();
+        
+        // Update health UI if it exists
+        this._updateHealthUI();
+        
+        // Check for game over if health is depleted
+        if (this.health <= 0) {
+            console.log("Player health depleted!");
+            // Could trigger game over here
+            const gameState = this.engine.stateManager.getCurrentState();
+            if (gameState && typeof gameState.onPlayerDeath === 'function') {
+                gameState.onPlayerDeath();
+            }
+        }
+        
         return this.health;
+    }
+    
+    /**
+     * Show a visual effect when the player is hit
+     */
+    _showHitEffect() {
+        // Flash the player red
+        if (!this.object3D) return;
+        
+        // For each object with a material in the player's model
+        this.object3D.traverse(child => {
+            if (child.material) {
+                // Store a reference to the material(s)
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                
+                // Process each material
+                materials.forEach(material => {
+                    if (material.color) {
+                        // Make sure userData exists
+                        if (!child.userData) child.userData = {};
+                        
+                        // Store original color if not already stored
+                        if (!child.userData.originalColor) {
+                            child.userData.originalColor = material.color.clone();
+                        }
+                        
+                        // Set to red
+                        material.color.set(0xff0000);
+                    }
+                });
+            }
+        });
+        
+        // Create damage text effect
+        const position = this.getPosition();
+        if (position) {
+            this._createDamageText(position);
+        }
+        
+        // Restore original colors after a delay
+        setTimeout(() => {
+            this._restoreOriginalColors();
+        }, 200);
+    }
+    
+    /**
+     * Restore the original colors of player materials
+     */
+    _restoreOriginalColors() {
+        if (!this.object3D) return;
+        
+        this.object3D.traverse(child => {
+            if (child.material && child.userData && child.userData.originalColor) {
+                // Get the material(s)
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                
+                // Restore original color to each material
+                materials.forEach(material => {
+                    if (material.color) {
+                        material.color.copy(child.userData.originalColor);
+                    }
+                });
+            }
+        });
+    }
+    
+    /**
+     * Create floating damage text
+     */
+    _createDamageText(position) {
+        // Get the game state
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (!gameState || typeof gameState._showDamageText !== 'function') return;
+        
+        // Use the game state's damage text method
+        gameState._showDamageText(position, "DAMAGED!", 0xff0000);
+    }
+    
+    /**
+     * Update health UI if available
+     */
+    _updateHealthUI() {
+        // Find health UI element
+        const healthBar = document.getElementById('player-health-bar');
+        if (healthBar) {
+            // Update health bar width
+            const healthPercent = this.getHealthPercentage();
+            healthBar.style.width = `${healthPercent}%`;
+            
+            // Change color based on health level
+            if (healthPercent < 20) {
+                healthBar.style.backgroundColor = '#f44336'; // Red
+            } else if (healthPercent < 50) {
+                healthBar.style.backgroundColor = '#ff9800'; // Orange
+            } else {
+                healthBar.style.backgroundColor = '#4caf50'; // Green
+            }
+        }
+        
+        // Update health text if it exists
+        const healthText = document.getElementById('player-health-text');
+        if (healthText) {
+            healthText.textContent = `${Math.ceil(this.health)} / ${this.maxHealth}`;
+        }
     }
     
     /**
