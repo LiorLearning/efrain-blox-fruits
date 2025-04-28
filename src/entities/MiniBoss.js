@@ -13,7 +13,7 @@ export class MiniBoss extends Entity {
         this.maxHealth = options.maxHealth || 200;
         this.speed = options.speed || 2;
         this.attackPower = options.attackPower || 25;
-        this.attackRange = options.attackRange || 8; // Attack range in units (larger than enemy)
+        this.attackRange = options.attackRange || 5; // Attack range in units (same as enemy/player)
         
         // Boss abilities
         this.abilities = options.abilities || [];
@@ -348,33 +348,11 @@ export class MiniBoss extends Entity {
      * Update attack range indicator visibility based on player proximity
      */
     _updateRangeIndicator() {
-        // Create indicator if it doesn't exist
-        if (!this.rangeIndicator) {
-            this._createRangeIndicator();
+        // Range indicators are disabled for better gameplay experience
+        // If an indicator exists, make sure it's hidden
+        if (this.rangeIndicator) {
+            this.rangeIndicator.visible = false;
         }
-        
-        // Get player from the game state
-        const gameState = this.engine.stateManager.getCurrentState();
-        if (!gameState || !gameState.player) return;
-        
-        const player = gameState.player;
-        const playerPos = player.getPosition();
-        const bossPos = this.getPosition();
-        
-        if (!playerPos || !bossPos) return;
-        
-        // Update indicator position to match boss position
-        this.rangeIndicator.position.x = bossPos.x;
-        this.rangeIndicator.position.z = bossPos.z;
-        
-        // Calculate distance to player
-        const distance = Math.sqrt(
-            Math.pow(playerPos.x - bossPos.x, 2) + 
-            Math.pow(playerPos.z - bossPos.z, 2)
-        );
-        
-        // Show indicator if player is close (within 3x attack range for better visibility)
-        this.rangeIndicator.visible = (distance <= this.attackRange * 3);
     }
     
     /**
@@ -529,14 +507,17 @@ export class MiniBoss extends Entity {
     /**
      * Make the boss take damage
      */
-    takeDamage(amount) {
+    takeDamage(amount, damageType) {
+        // Log the damage with type
+        console.log(`Boss ${this.name} taking ${amount.toFixed(1)} damage of type: ${damageType || 'default'}`);
+        
         const oldHealth = this.health;
         this.health -= amount;
         
         console.log(`Boss ${this.name} Health: ${oldHealth.toFixed(1)} -> ${this.health.toFixed(1)} (damage: ${amount.toFixed(1)})`);
         
         // Show hit effect (flash red)
-        this._showHitEffect();
+        this._showHitEffect(damageType);
         
         // Update health bar
         this._updateHealthBar();
@@ -557,8 +538,8 @@ export class MiniBoss extends Entity {
     /**
      * Show visual effect when boss is hit
      */
-    _showHitEffect() {
-        console.log(`BOSS HIT EFFECT: ${this.name}`);
+    _showHitEffect(damageType) {
+        console.log(`BOSS HIT EFFECT: ${this.name} (${damageType || 'default'})`);
         
         // For sprite-based bosses
         const sprites = [];
@@ -712,9 +693,9 @@ export class MiniBoss extends Entity {
             this.playerProximityTimer = 0;
         }
         
-        // Always show range indicator when player is nearby
+        // Range indicators are disabled for better gameplay experience
         if (this.rangeIndicator) {
-            this.rangeIndicator.visible = true;
+            this.rangeIndicator.visible = false;
         }
     }
 }

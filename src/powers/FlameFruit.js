@@ -3,6 +3,7 @@
  */
 import { Fruit } from './Fruit.js';
 import * as THREE from 'three';
+import fruitStore from '../lib/FruitStore.js';
 
 export class FlameFruit extends Fruit {
     constructor(engine, options = {}) {
@@ -27,10 +28,16 @@ export class FlameFruit extends Fruit {
      */
     useBasicAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Fireball', position, direction, (pos, dir) => {
-            // Set cooldown
-            this.cooldowns['Fireball'] = 1; // 1 second cooldown
+        return this._useAttack('Basic Attack', position, direction, (pos, dir) => {
+            // Create a fireball projectile
+            // // const fireball = this.createProjectile(pos, dir, {
+            // //     color: 0xff5500,
+            // //     speed: 15,
+            // //     damage: fruitStore.getFruit(this.name).damageValues['Basic Attack'],
+            // //     type: 'flame'
+            // });
             
+            // Check for enemies in range (will be done during projectile update)
             return true;
         });
     }
@@ -40,10 +47,20 @@ export class FlameFruit extends Fruit {
      */
     useSpecialAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Flame Wave', position, direction, (pos, dir) => {
-            // Set longer cooldown for special attack
-            this.cooldowns['Flame Wave'] = 5; // 5 seconds cooldown
-            this.cooldowns['special'] = 5; // General special attack cooldown
+        return this._useAttack('Special Attack', position, direction, (pos, dir) => {
+            // Create a flame wave area effect
+            // const flameWave = this.createAreaEffect(pos, {
+            //     color: 0xff3300,
+            //     radius: 5,
+            //     damage: fruitStore.getFruit(this.name).damageValues['Special Attack'],
+            //     lifetime: 2,
+            //     opacity: 0.7,
+            //     type: 'flame'
+            // });
+            
+            // Apply immediate damage to enemies in range
+            this.checkEnemiesInRange(pos, 5, fruitStore.getFruit(this.name).damageValues['Special Attack'], 'flame');
+            
             return true;
         });
     }
@@ -53,9 +70,19 @@ export class FlameFruit extends Fruit {
      */
     useUltimateAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Inferno', position, direction, (pos, dir) => {
-            // Set very long cooldown for ultimate
-            this.cooldowns['Inferno'] = 30; // 30 seconds cooldown
+        return this._useAttack('Ultimate Attack', position, direction, (pos, dir) => {
+            // Create a large inferno area effect
+            // const inferno = this.createAreaEffect(pos, {
+            //     color: 0xff0000,
+            //     radius: 8,
+            //     damage: fruitStore.getFruit(this.name).damageValues['Ultimate Attack'],
+            //     lifetime: 5,
+            //     opacity: 0.8,
+            //     type: 'flame'
+            // });
+            
+            // Apply immediate damage to enemies in range
+            this.checkEnemiesInRange(pos, 8, fruitStore.getFruit(this.name).damageValues['Ultimate Attack'], 'flame');
             
             return true;
         });

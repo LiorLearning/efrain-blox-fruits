@@ -192,7 +192,6 @@ export class MenuState extends BaseState {
         this.menuUI.innerHTML = `
             <div class="menu-title">Blox Fruits</div>
             <div class="menu-subtitle">A Fruit Adventure Game</div>
-            <div class="menu-instructions">Click to start your adventure!</div>
         `;
         
         // Add some basic styling
@@ -200,8 +199,9 @@ export class MenuState extends BaseState {
         style.textContent = `
             .menu-ui {
                 position: absolute;
-                top: 20px;
-                left: 0;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
                 width: 100%;
                 text-align: center;
                 color: white;

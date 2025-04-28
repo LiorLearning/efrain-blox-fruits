@@ -3,6 +3,7 @@
  */
 import { Fruit } from './Fruit.js';
 import * as THREE from 'three';
+import fruitStore from '../lib/FruitStore.js';
 
 export class IceFruit extends Fruit {
     constructor(engine, options = {}) {
@@ -27,9 +28,17 @@ export class IceFruit extends Fruit {
      */
     useBasicAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Ice Spike', position, direction, (pos, dir) => {
-            // Set cooldown
-            this.cooldowns['Ice Spike'] = 0.8; // 0.8 second cooldown
+        return this._useAttack('Basic Attack', position, direction, (pos, dir) => {
+            // Create an ice spike projectile
+            const iceSpike = this.createProjectile(pos, dir, {
+                color: 0x2196f3,
+                speed: 15,
+                damage: fruitStore.getFruit(this.name).damageValues['Basic Attack'],
+                type: 'ice'
+            });
+            
+            // Check for enemies in range
+            this.checkEnemiesInRange(pos, 3, fruitStore.getFruit(this.name).damageValues['Basic Attack'], 'ice');
             
             return true;
         });
@@ -40,10 +49,26 @@ export class IceFruit extends Fruit {
      */
     useSpecialAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Ice Wall', position, direction, (pos, dir) => {
-            // Set cooldown
-            this.cooldowns['Ice Wall'] = 8; // 8 second cooldown
-            this.cooldowns['special'] = 8; // General special attack cooldown
+        return this._useAttack('Special Attack', position, direction, (pos, dir) => {
+            // Create an ice wall in front of the player
+            const wallPos = new THREE.Vector3(
+                pos.x + dir.x * 3,
+                pos.y,
+                pos.z + dir.z * 3
+            );
+            
+            // Create a wall area effect
+            const iceWall = this.createAreaEffect(wallPos, {
+                color: 0x90caf9,
+                radius: 4,
+                damage: fruitStore.getFruit(this.name).damageValues['Special Attack'],
+                lifetime: 3,
+                opacity: 0.6,
+                type: 'ice'
+            });
+            
+            // Apply damage to enemies in range
+            this.checkEnemiesInRange(wallPos, 4, fruitStore.getFruit(this.name).damageValues['Special Attack'], 'ice');
             
             return true;
         });
@@ -54,10 +79,19 @@ export class IceFruit extends Fruit {
      */
     useUltimateAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Blizzard', position, direction, (pos, dir) => {
+        return this._useAttack('Ultimate Attack', position, direction, (pos, dir) => {
+            // Create a large blizzard area effect
+            const blizzard = this.createAreaEffect(pos, {
+                color: 0xb3e5fc,
+                radius: 8,
+                damage: fruitStore.getFruit(this.name).damageValues['Ultimate Attack'],
+                lifetime: 5,
+                opacity: 0.7,
+                type: 'ice'
+            });
             
-            // Set cooldown
-            this.cooldowns['Blizzard'] = 25; // 25 second cooldown
+            // Apply damage to enemies in range
+            this.checkEnemiesInRange(pos, 8, fruitStore.getFruit(this.name).damageValues['Ultimate Attack'], 'ice');
             
             return true;
         });

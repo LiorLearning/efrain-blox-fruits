@@ -3,6 +3,7 @@
  */
 import { BaseState } from './BaseState.js';
 import * as THREE from 'three';
+import fruitStore from '../lib/FruitStore.js';
 
 export class FruitSelectState extends BaseState {
     constructor(engine) {
@@ -39,9 +40,17 @@ export class FruitSelectState extends BaseState {
     enter(params = {}) {
         super.enter(params);
         
+        // Reset the fruit store
+        fruitStore.initialize();
+        
         // Pre-select the first 5 fruits by default
         const fruits = this.engine.config.fruits;
         this.selectedFruits = fruits.slice(0, this.maxSelections);
+        
+        // Add selected fruits to the store
+        this.selectedFruits.forEach(fruit => {
+            fruitStore.addFruit(fruit);
+        });
         
         // Set background texture
         const backgroundTexture = this.engine.resources.getTexture('background');
@@ -72,6 +81,10 @@ export class FruitSelectState extends BaseState {
             <div class="fruit-select-subtitle">Select 5 fruits to begin your adventure</div>
             <div class="fruit-selection-count">Selected: ${this.selectedFruits.length}/${this.maxSelections}</div>
             <div class="fruit-grid interactive-element"></div>
+            <div class="fruit-details-container">
+                <div class="fruit-details-header">Fruit Details</div>
+                <div class="fruit-details-content"></div>
+            </div>
             <button class="start-button" ${this.selectedFruits.length === this.maxSelections ? '' : 'disabled'}>Start Adventure</button>
         `;
         
@@ -162,6 +175,80 @@ export class FruitSelectState extends BaseState {
                 color: #aaa;
             }
             
+            .fruit-details-container {
+                width: 80%;
+                max-width: 800px;
+                background-color: rgba(0, 0, 0, 0.6);
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 30px;
+            }
+            
+            .fruit-details-header {
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 15px;
+                text-align: center;
+            }
+            
+            .fruit-details-content {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 20px;
+                justify-content: center;
+            }
+            
+            .fruit-detail-card {
+                background-color: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                padding: 15px;
+                width: 220px;
+            }
+            
+            .fruit-detail-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+            
+            .fruit-detail-icon {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                margin-right: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .fruit-detail-name {
+                font-size: 18px;
+                font-weight: bold;
+            }
+            
+            .attack-list {
+                margin-top: 10px;
+            }
+            
+            .attack-item {
+                margin-bottom: 8px;
+                padding: 5px;
+                background-color: rgba(255, 255, 255, 0.05);
+                border-radius: 5px;
+            }
+            
+            .attack-name {
+                font-weight: bold;
+                margin-bottom: 3px;
+            }
+            
+            .attack-info {
+                display: flex;
+                justify-content: space-between;
+                font-size: 12px;
+                color: #ccc;
+            }
+            
             .start-button {
                 padding: 12px 24px;
                 font-size: 18px;
@@ -224,6 +311,9 @@ export class FruitSelectState extends BaseState {
             fruitGrid.appendChild(fruitItem);
         });
         
+        // Populate fruit details
+        this.updateFruitDetails();
+        
         // Add start button handler
         const startButton = this.fruitSelectUI.querySelector('.start-button');
         startButton.addEventListener('click', () => {
@@ -234,6 +324,75 @@ export class FruitSelectState extends BaseState {
                 // Transition to gameplay state
                 this.engine.stateManager.changeState('gameplay');
             }
+        });
+    }
+    
+    /**
+     * Update the fruit details section
+     */
+    updateFruitDetails() {
+        const detailsContent = this.fruitSelectUI.querySelector('.fruit-details-content');
+        detailsContent.innerHTML = '';
+        
+        // Add cards for each selected fruit
+        this.selectedFruits.forEach(fruit => {
+            // Get fruit from store
+            const fruitData = fruitStore.getFruit(fruit.name) || { 
+                name: fruit.name, 
+                type: fruit.type, 
+                attacks: fruit.attacks,
+                damageValues: { 
+                    'Basic Attack': Math.round(fruit.power * 0.8),
+                    'Special Attack': Math.round(fruit.power * 1.5),
+                    'Ultimate Attack': Math.round(fruit.power * 3)
+                },
+                cooldowns: fruitStore.defaultCooldowns
+            };
+            
+            const detailCard = document.createElement('div');
+            detailCard.className = 'fruit-detail-card';
+            
+            // Create header
+            const header = document.createElement('div');
+            header.className = 'fruit-detail-header';
+            
+            const icon = document.createElement('div');
+            icon.className = 'fruit-detail-icon';
+            icon.innerHTML = this.getFruitEmoji(fruit.type);
+            
+            const name = document.createElement('div');
+            name.className = 'fruit-detail-name';
+            name.textContent = fruit.name;
+            
+            header.appendChild(icon);
+            header.appendChild(name);
+            detailCard.appendChild(header);
+            
+            // Create attack list
+            const attackList = document.createElement('div');
+            attackList.className = 'attack-list';
+            
+            const attackTypes = ['Basic Attack', 'Special Attack', 'Ultimate Attack'];
+            attackTypes.forEach((attackType, index) => {
+                const attackItem = document.createElement('div');
+                attackItem.className = 'attack-item';
+                
+                // Get attack name from fruit attacks array if available
+                const attackName = fruit.attacks[index] || attackType;
+                
+                attackItem.innerHTML = `
+                    <div class="attack-name">${attackName}</div>
+                    <div class="attack-info">
+                        <span>Damage: ${fruitData.damageValues[attackType]}</span>
+                        <span>Cooldown: ${fruitData.cooldowns[attackType]}s</span>
+                    </div>
+                `;
+                
+                attackList.appendChild(attackItem);
+            });
+            
+            detailCard.appendChild(attackList);
+            detailsContent.appendChild(detailCard);
         });
     }
     
@@ -281,11 +440,19 @@ export class FruitSelectState extends BaseState {
             // Select this fruit
             element.classList.add('selected');
             this.selectedFruits.push(fruit);
+            
+            // Add to fruit store if not there already
+            if (!fruitStore.getFruit(fruit.name)) {
+                fruitStore.addFruit(fruit);
+            }
         }
         
         // Update selection count
         const countElement = this.fruitSelectUI.querySelector('.fruit-selection-count');
         countElement.textContent = `Selected: ${this.selectedFruits.length}/${this.maxSelections}`;
+        
+        // Update fruit details
+        this.updateFruitDetails();
         
         // Enable/disable start button
         const startButton = this.fruitSelectUI.querySelector('.start-button');
@@ -298,7 +465,8 @@ export class FruitSelectState extends BaseState {
     update(deltaTime) {
         super.update(deltaTime);
         
-        // Rotate fruit displays or other animations
+        // Update fruit store cooldowns
+        fruitStore.updateCooldowns(deltaTime);
     }
     
     /**

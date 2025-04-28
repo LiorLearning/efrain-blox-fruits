@@ -3,6 +3,7 @@
  */
 import { Fruit } from './Fruit.js';
 import * as THREE from 'three';
+import fruitStore from '../lib/FruitStore.js';
 
 export class LightFruit extends Fruit {
     constructor(engine, options = {}) {
@@ -27,9 +28,8 @@ export class LightFruit extends Fruit {
     useBasicAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Light Beam', position, direction, (pos, dir) => {
-            // Set cooldown
-            this.cooldowns['Light Beam'] = 0.5; // 0.5 second cooldown
-            
+            // The cooldown is now managed by the FruitStore
+            // No need to set this.cooldowns directly
             return true;
         });
     }
@@ -40,10 +40,8 @@ export class LightFruit extends Fruit {
     useSpecialAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Flash Step', position, direction, (pos, dir) => {
-            // Set cooldown
-            this.cooldowns['Flash Step'] = 8; // 8 second cooldown
-            this.cooldowns['special'] = 8; // General special cooldown
-            
+            // The cooldown is now managed by the FruitStore
+            // No need to set this.cooldowns directly
             return true;
         });
     }
@@ -54,9 +52,8 @@ export class LightFruit extends Fruit {
     useUltimateAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Solar Flare', position, direction, (pos, dir) => {
-            // Set cooldown
-            this.cooldowns['Solar Flare'] = 20; // 20 second cooldown
-            
+            // The cooldown is now managed by the FruitStore
+            // No need to set this.cooldowns directly
             return true;
         });
     }

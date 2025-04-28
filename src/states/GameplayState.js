@@ -6,6 +6,7 @@ import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { MiniBoss } from '../entities/MiniBoss.js';
 import * as THREE from 'three';
+import fruitStore from '../lib/FruitStore.js';
 
 export class GameplayState extends BaseState {
     constructor(engine) {
@@ -22,6 +23,9 @@ export class GameplayState extends BaseState {
         // Background music
         this.bgMusic = null;
         this.audioListener = null;
+        
+        // Store currently selected fruit index
+        this.selectedFruitIndex = 0;
     }
     
     /**
@@ -197,8 +201,8 @@ export class GameplayState extends BaseState {
         // Set camera position for fixed isometric view
         const camera = this.engine.renderer.camera;
         
-        // Position camera for true isometric view at a fixed distance
-        camera.position.set(20, 20, 20);
+        // Position camera for true isometric view at a fixed distance with increased height
+        camera.position.set(20, 30, 20);
         
         // Look at center of the island
         camera.lookAt(0, 0, 0);
@@ -232,6 +236,10 @@ export class GameplayState extends BaseState {
             <div class="fruit-powers">
                 <div class="fruit-power-title">Fruit Powers</div>
                 <div class="fruit-power-list"></div>
+                <div class="fruit-details-panel">
+                    <div class="fruit-details-name"></div>
+                    <div class="fruit-details-attacks"></div>
+                </div>
             </div>
             <div class="game-controls">
                 <div class="controls-info">
@@ -290,7 +298,7 @@ export class GameplayState extends BaseState {
                 padding: 10px;
                 background-color: rgba(0, 0, 0, 0.5);
                 border-radius: 5px;
-                width: 300px;
+                width: 360px;
             }
             
             .fruit-power-title {
@@ -302,6 +310,7 @@ export class GameplayState extends BaseState {
             .fruit-power-list {
                 display: flex;
                 gap: 10px;
+                margin-bottom: 15px;
             }
             
             .fruit-power-item {
@@ -313,11 +322,74 @@ export class GameplayState extends BaseState {
                 align-items: center;
                 justify-content: center;
                 font-size: 24px;
+                position: relative;
             }
             
             .fruit-power-item.active {
                 background-color: rgba(255, 215, 0, 0.4);
                 border: 2px solid gold;
+            }
+            
+            .fruit-uses {
+                position: absolute;
+                bottom: 2px;
+                right: 2px;
+                background-color: rgba(0, 0, 0, 0.7);
+                color: white;
+                font-size: 12px;
+                padding: 1px 4px;
+                border-radius: 4px;
+            }
+            
+            .fruit-details-panel {
+                background-color: rgba(0, 0, 0, 0.3);
+                border-radius: 5px;
+                padding: 10px;
+            }
+            
+            .fruit-details-name {
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 8px;
+            }
+            
+            .fruit-attack-item {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 5px;
+                font-size: 14px;
+                padding: 4px;
+                background-color: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+            }
+            
+            .attack-name {
+                font-weight: bold;
+            }
+            
+            .attack-cooldown {
+                display: flex;
+                align-items: center;
+            }
+            
+            .cooldown-bar {
+                width: 40px;
+                height: 6px;
+                background-color: #555;
+                border-radius: 3px;
+                overflow: hidden;
+                margin-left: 5px;
+            }
+            
+            .cooldown-fill {
+                height: 100%;
+                background-color: #3af;
+                width: 0%;
+            }
+            
+            .attack-damage {
+                color: #f55;
+                margin-right: 10px;
             }
             
             .game-controls {
@@ -338,16 +410,48 @@ export class GameplayState extends BaseState {
         this.uiContainer.appendChild(this.gameplayUI);
         
         // Add selected fruits to UI
+        this.populateFruitUI();
+        
+        // Update fruit details for the initially selected fruit
+        this.updateFruitDetails();
+        
+        // Add event listener for the debug damage button
+        const debugDamageButton = this.gameplayUI.querySelector('.debug-damage-button');
+        if (debugDamageButton) {
+            debugDamageButton.addEventListener('click', () => {
+                if (this.player) {
+                    // Deal enough damage to kill the player
+                    this.player.takeDamage(this.player.health);
+                }
+            });
+        }
+    }
+    
+    /**
+     * Populate the fruit UI with the player's selected fruits
+     */
+    populateFruitUI() {
         const fruitPowerList = this.gameplayUI.querySelector('.fruit-power-list');
+        fruitPowerList.innerHTML = '';
         
         if (this.engine.playerFruits && this.engine.playerFruits.length > 0) {
             this.engine.playerFruits.forEach((fruit, index) => {
                 const fruitItem = document.createElement('div');
                 fruitItem.className = 'fruit-power-item';
-                fruitItem.innerHTML = `<img src="assets/models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" alt="${fruit.name}" style="width: 40px; height: 40px; object-fit: contain;">`;
+                
+                // Get fruit data from store
+                const fruitData = fruitStore.getFruit(fruit.name);
+                const usesRemaining = fruitData ? fruitData.usesRemaining : 5;
+                
+                fruitItem.innerHTML = `
+                    <img src="assets/models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" 
+                         alt="${fruit.name}" 
+                         style="width: 40px; height: 40px; object-fit: contain;">
+                    <span class="fruit-uses">${usesRemaining}</span>
+                `;
                 fruitItem.dataset.fruitIndex = index;
                 
-                if (index === 0) {
+                if (index === this.selectedFruitIndex) {
                     fruitItem.classList.add('active');
                 }
                 
@@ -359,16 +463,124 @@ export class GameplayState extends BaseState {
             defaultFruits.forEach((type, index) => {
                 const fruitItem = document.createElement('div');
                 fruitItem.className = 'fruit-power-item';
-                fruitItem.innerHTML = `<img src="assets/models/fruits/${type.charAt(0).toUpperCase() + type.slice(1)}Fruit.png" alt="${type}" style="width: 40px; height: 40px; object-fit: contain;">`;
+                fruitItem.innerHTML = `
+                    <img src="assets/models/fruits/${type.charAt(0).toUpperCase() + type.slice(1)}Fruit.png" 
+                         alt="${type}" 
+                         style="width: 40px; height: 40px; object-fit: contain;">
+                    <span class="fruit-uses">5</span>
+                `;
                 fruitItem.dataset.fruitIndex = index;
                 
-                if (index === 0) {
+                if (index === this.selectedFruitIndex) {
                     fruitItem.classList.add('active');
                 }
                 
                 fruitPowerList.appendChild(fruitItem);
             });
         }
+    }
+    
+    /**
+     * Update the fruit details panel
+     */
+    updateFruitDetails() {
+        if (!this.gameplayUI) return;
+        
+        const detailsName = this.gameplayUI.querySelector('.fruit-details-name');
+        const detailsAttacks = this.gameplayUI.querySelector('.fruit-details-attacks');
+        
+        // Get the currently selected fruit
+        const fruits = this.engine.playerFruits || [];
+        if (fruits.length === 0 || this.selectedFruitIndex >= fruits.length) return;
+        
+        const selectedFruit = fruits[this.selectedFruitIndex];
+        const fruitData = fruitStore.getFruit(selectedFruit.name);
+        
+        if (!fruitData) return;
+        
+        // Update the fruit name
+        detailsName.textContent = selectedFruit.name;
+        
+        // Clear and update attacks
+        detailsAttacks.innerHTML = '';
+        
+        const attackTypes = ['Basic Attack', 'Special Attack', 'Ultimate Attack'];
+        attackTypes.forEach((attackType, index) => {
+            // Get the attack name from fruit attacks array if available
+            const attackName = selectedFruit.attacks[index] || attackType;
+            
+            const attackItem = document.createElement('div');
+            attackItem.className = 'fruit-attack-item';
+            
+            // Calculate cooldown percentage
+            const cooldownPercent = fruitStore.getCooldownPercentage(selectedFruit.name, attackType);
+            const cooldownTime = fruitData.currentCooldowns[attackType].toFixed(1);
+            const showCooldown = cooldownPercent > 0 ? `${cooldownTime}s` : 'Ready';
+            
+            attackItem.innerHTML = `
+                <div class="attack-name">${attackName}</div>
+                <div class="attack-info">
+                    <span class="attack-damage">DMG: ${fruitData.damageValues[attackType]}</span>
+                    <span class="attack-cooldown">
+                        ${showCooldown}
+                        <div class="cooldown-bar">
+                            <div class="cooldown-fill" style="width: ${cooldownPercent}%"></div>
+                        </div>
+                    </span>
+                </div>
+            `;
+            
+            detailsAttacks.appendChild(attackItem);
+        });
+    }
+    
+    /**
+     * Update the fruit UI with current uses and cooldowns
+     */
+    updateFruitUI() {
+        // Update the uses remaining for each fruit
+        const fruitItems = this.gameplayUI.querySelectorAll('.fruit-power-item');
+        const fruits = this.engine.playerFruits || [];
+        
+        fruitItems.forEach((item, index) => {
+            if (index >= fruits.length) return;
+            
+            const fruit = fruits[index];
+            const fruitData = fruitStore.getFruit(fruit.name);
+            
+            if (fruitData) {
+                const usesEl = item.querySelector('.fruit-uses');
+                if (usesEl) {
+                    usesEl.textContent = fruitData.usesRemaining;
+                }
+            }
+        });
+        
+        // Update the selected fruit's details
+        this.updateFruitDetails();
+    }
+    
+    /**
+     * Select a fruit by index
+     */
+    selectFruit(index) {
+        const fruits = this.engine.playerFruits || [];
+        if (index < 0 || index >= fruits.length) return;
+        
+        this.selectedFruitIndex = index;
+        
+        // Update UI to show the selected fruit
+        const fruitItems = this.gameplayUI.querySelectorAll('.fruit-power-item');
+        fruitItems.forEach((item, i) => {
+            if (i === index) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+        
+        // Update the fruit details panel
+        this.updateFruitDetails();
     }
     
     /**
@@ -439,15 +651,17 @@ export class GameplayState extends BaseState {
     update(deltaTime) {
         super.update(deltaTime);
         
-        // Update player movement
-        this.updatePlayerMovement(deltaTime);
+        // Update the player
+        if (this.player) {
+            this.player.update(deltaTime);
+        }
         
         // Update enemies
         this.enemies.forEach(enemy => {
             if (enemy) enemy.update(deltaTime);
         });
         
-        // Update boss
+        // Update boss if exists
         if (this.boss) {
             this.boss.update(deltaTime);
         }
@@ -455,426 +669,18 @@ export class GameplayState extends BaseState {
         // Update camera to follow player
         this.updateCamera();
         
-        // Check for projectile collisions
-        this.detectProjectileCollisions();
-    }
-    
-    /**
-     * Detect collisions between projectiles and enemies
-     */
-    detectProjectileCollisions() {
-        const scene = this.engine.renderer.scene;
-        if (!scene) return;
+        // Update fruit store cooldowns
+        fruitStore.updateCooldowns(deltaTime);
         
-        // Get all projectiles in the scene
-        const projectiles = [];
-        scene.traverse((object) => {
-            if (object.userData && 
-                object.userData.type && 
-                (object.userData.type === 'projectile' || 
-                 object.userData.type === 'fireball' || 
-                 object.userData.type === 'iceSpike' || 
-                 object.userData.type === 'lightBeam')) {
-                projectiles.push(object);
+        // Update fruit UI
+        this.updateFruitUI();
+        
+        // Handle input for fruit selection (1-5 keys)
+        for (let i = 1; i <= 5; i++) {
+            if (this.engine.input.isKeyPressed(`Digit${i}`) || this.engine.input.isKeyPressed(`Numpad${i}`)) {
+                this.selectFruit(i - 1);
             }
-        });
-        
-        // Get all area effects in the scene
-        const areaEffects = [];
-        scene.traverse((object) => {
-            if (object.userData && 
-                object.userData.type && 
-                (object.userData.type === 'area' || 
-                 object.userData.type === 'inferno' ||
-                 object.userData.type === 'iceField')) {
-                areaEffects.push(object);
-            }
-        });
-        
-        // Get all enemies including boss
-        const enemies = [...this.enemies];
-        if (this.boss) {
-            enemies.push(this.boss);
         }
-        
-        // Check each projectile against each enemy
-        projectiles.forEach(projectile => {
-            // Skip non-player projectiles
-            if (projectile.userData.source !== 'player') return;
-            
-            // Get projectile position
-            const projectilePos = projectile.position;
-            
-            // Check against each enemy
-            enemies.forEach(enemy => {
-                // Skip inactive enemies
-                if (!enemy || !enemy.isActive) return;
-                
-                // Get enemy position
-                const enemyPos = enemy.getPosition();
-                if (!enemyPos) return;
-                
-                // Calculate distance between projectile and enemy
-                const distance = Math.sqrt(
-                    Math.pow(projectilePos.x - enemyPos.x, 2) + 
-                    Math.pow(projectilePos.z - enemyPos.z, 2)
-                );
-                
-                // Get enemy collision radius
-                const enemyRadius = enemy.object3D && enemy.object3D.userData && 
-                                  enemy.object3D.userData.collider ? 
-                                  enemy.object3D.userData.collider.radius : 0.7;
-                
-                // Get projectile collision radius
-                const projectileRadius = 0.5; // Default projectile radius
-                
-                // Check for collision
-                if (distance < enemyRadius + projectileRadius) {
-                    // Collision detected!
-                    console.log(`Projectile hit! Enemy: ${enemy.name}, Distance: ${distance.toFixed(2)}, Combined radius: ${(enemyRadius + projectileRadius).toFixed(2)}`);
-                    
-                    // Apply different damage based on enemy type
-                    let damage = projectile.userData.damage;
-                    
-                    // Check if it's a boss (check by name rather than instanceof)
-                    let percentText;
-                    if (enemy.name && enemy.name.includes('Boss')) {
-                        // Boss takes 10% of health as damage
-                        const percentDamage = enemy.health * 0.1;
-                        damage = Math.max(damage, percentDamage);
-                        console.log(`Boss hit! Taking ${damage.toFixed(1)} damage (10% of health)`);
-                        percentText = "10%";
-                        
-                        // Use percentage damage if it's greater than normal damage
-                        if (percentDamage > projectile.userData.damage) {
-                            this._showDamageText(enemy.getPosition(), "10% DAMAGE!", 0xff0000);
-                        }
-                    } else {
-                        // Regular villain takes 25% of health as damage
-                        const percentDamage = enemy.health * 0.25;
-                        damage = Math.max(damage, percentDamage);
-                        console.log(`Villain hit! Taking ${damage.toFixed(1)} damage (25% of health)`);
-                        percentText = "25%";
-                        
-                        // Use percentage damage if it's greater than normal damage
-                        if (percentDamage > projectile.userData.damage) {
-                            this._showDamageText(enemy.getPosition(), "25% DAMAGE!", 0xff0000);
-                        }
-                    }
-                    
-                    // Deal damage to enemy
-                    enemy.takeDamage(damage);
-                    
-                    // Explicitly call the hit effect on the enemy
-                    enemy._showHitEffect();
-                    
-                    // Special effects based on projectile type
-                    this.createHitEffect(projectile, enemy);
-                    
-                    // Remove the projectile
-                    scene.remove(projectile);
-                    
-                    // Clean up geometries and materials
-                    projectile.traverse((object) => {
-                        if (object.geometry) {
-                            object.geometry.dispose();
-                        }
-                        if (object.material) {
-                            if (Array.isArray(object.material)) {
-                                object.material.forEach(material => material.dispose());
-                            } else {
-                                object.material.dispose();
-                            }
-                        }
-                    });
-                }
-            });
-        });
-        
-        // Check each area effect against each enemy
-        areaEffects.forEach(effect => {
-            // Skip non-player effects
-            if (effect.userData.source !== 'player') return;
-            
-            // Get effect position and radius
-            const effectPos = effect.position;
-            const effectRadius = effect.userData.radius || 5;
-            
-            // Check against each enemy
-            enemies.forEach(enemy => {
-                // Skip inactive enemies
-                if (!enemy || !enemy.isActive) return;
-                
-                // Get enemy position
-                const enemyPos = enemy.getPosition();
-                if (!enemyPos) return;
-                
-                // Calculate distance between effect and enemy
-                const distance = Math.sqrt(
-                    Math.pow(effectPos.x - enemyPos.x, 2) + 
-                    Math.pow(effectPos.z - enemyPos.z, 2)
-                );
-                
-                // Check if enemy is within effect radius
-                if (distance < effectRadius) {
-                    // Enemy is in area effect range!
-                    
-                    // Apply different damage based on enemy type
-                    let damage = effect.userData.damage * this.engine.time.deltaTime; // Scale damage by time
-                    
-                    // Check if it's a boss
-                    if (enemy.name && enemy.name.includes('Boss')) {
-                        // Boss takes 10% of health as damage
-                        const percentDamage = enemy.health * 0.1 * this.engine.time.deltaTime;
-                        damage = Math.max(damage, percentDamage);
-                        
-                        // Use percentage damage if it's greater
-                        if (percentDamage > effect.userData.damage * this.engine.time.deltaTime) {
-                            this._showDamageText(enemy.getPosition(), "10%", 0xff0000);
-                        }
-                    } else {
-                        // Regular villain takes 25% of health as damage
-                        const percentDamage = enemy.health * 0.25 * this.engine.time.deltaTime;
-                        damage = Math.max(damage, percentDamage);
-                        
-                        // Use percentage damage if it's greater
-                        if (percentDamage > effect.userData.damage * this.engine.time.deltaTime) {
-                            this._showDamageText(enemy.getPosition(), "25%", 0xff0000);
-                        }
-                    }
-                    
-                    // Deal damage to enemy
-                    enemy.takeDamage(damage);
-                }
-            });
-        });
-    }
-    
-    /**
-     * Check for direct attacks against enemies in range
-     * Called when player uses a direct attack with a fruit
-     */
-    checkDirectAttackHits(position, range, damage, attackType) {
-        // Get all enemies including boss
-        const enemies = [...this.enemies];
-        if (this.boss) {
-            enemies.push(this.boss);
-        }
-        
-        let hitAny = false;
-        
-        // Check each enemy to see if they're in range
-        enemies.forEach(enemy => {
-            // Skip inactive enemies
-            if (!enemy || !enemy.isActive) return;
-            
-            // Get enemy position
-            const enemyPos = enemy.getPosition();
-            if (!enemyPos) return;
-            
-            // Calculate distance between attack position and enemy
-            const distance = Math.sqrt(
-                Math.pow(position.x - enemyPos.x, 2) + 
-                Math.pow(position.z - enemyPos.z, 2)
-            );
-            
-            // Check if enemy is within attack range
-            if (distance <= range) {
-                // Enemy is in attack range!
-                console.log(`Enemy ${enemy.name} in attack range! Distance: ${distance.toFixed(2)}, Range: ${range}`);
-                hitAny = true;
-                
-                // Apply different damage based on enemy type
-                let finalDamage = damage;
-                
-                // Check if it's a boss
-                if (enemy.name && enemy.name.includes('Boss')) {
-                    // Boss takes 10% of health as damage
-                    const percentDamage = enemy.health * 0.1;
-                    finalDamage = Math.max(damage, percentDamage);
-                    console.log(`Boss hit! Taking ${finalDamage.toFixed(1)} damage (10% of health)`);
-                    
-                    // Use percentage damage if it's greater than normal damage
-                    if (percentDamage > damage) {
-                        this._showDamageText(enemy.getPosition(), "10% DAMAGE!", 0xff0000);
-                    }
-                } else {
-                    // Regular villain takes 25% of health as damage
-                    const percentDamage = enemy.health * 0.25;
-                    finalDamage = Math.max(damage, percentDamage);
-                    console.log(`Villain hit! Taking ${finalDamage.toFixed(1)} damage (25% of health)`);
-                    
-                    // Use percentage damage if it's greater than normal damage
-                    if (percentDamage > damage) {
-                        this._showDamageText(enemy.getPosition(), "25% DAMAGE!", 0xff0000);
-                    }
-                }
-                
-                // Deal damage to enemy
-                enemy.takeDamage(finalDamage);
-                
-                // Create hit effect - explicitly call showHitEffect on the enemy
-                enemy._showHitEffect();
-                
-                // Create visual hit effect at the hit position
-                const hitEffect = {
-                    userData: {
-                        type: attackType
-                    }
-                };
-                this.createHitEffect(hitEffect, enemy);
-            }
-        });
-        
-        return hitAny;
-    }
-    
-    /**
-     * Create visual effect when projectile hits enemy
-     */
-    createHitEffect(projectile, enemy) {
-        // Get hit position (enemy position at hit time)
-        const enemyPos = enemy.getPosition();
-        if (!enemyPos) return;
-        
-        // Get projectile type
-        const projectileType = projectile.userData.type;
-        
-        // Create hit effect based on projectile type
-        let color = 0xffffff; // Default color
-        
-        switch(projectileType) {
-            case 'fireball':
-                color = 0xff4400; // Orange/red for flame
-                break;
-            case 'iceSpike':
-                color = 0x00ddff; // Light blue for ice
-                break;
-            case 'lightBeam':
-                color = 0xffff00; // Yellow for light
-                break;
-            case 'bombFragment':
-                color = 0x888888; // Gray for bomb
-                break;
-        }
-        
-        // Create a flash effect at the hit position
-        const geometry = new THREE.SphereGeometry(1.0, 8, 8);
-        const material = new THREE.MeshBasicMaterial({ 
-            color: color,
-            transparent: true,
-            opacity: 0.8
-        });
-        
-        const hitEffect = new THREE.Mesh(geometry, material);
-        hitEffect.position.set(enemyPos.x, enemyPos.y + 1.0, enemyPos.z); // At enemy center
-        
-        // Add to scene
-        this.engine.renderer.scene.add(hitEffect);
-        
-        // Animate the hit effect
-        const startTime = Date.now();
-        const duration = 300; // ms
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Scale up and fade out
-            hitEffect.scale.set(1 + progress * 1.5, 1 + progress * 1.5, 1 + progress * 1.5);
-            hitEffect.material.opacity = 0.8 * (1 - progress);
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                // Remove effect when animation is complete
-                this.engine.renderer.scene.remove(hitEffect);
-                hitEffect.geometry.dispose();
-                hitEffect.material.dispose();
-            }
-        };
-        
-        // Start animation
-        animate();
-    }
-    
-    /**
-     * Show floating damage text above an enemy
-     */
-    _showDamageText(position, text, color = 0xff0000) {
-        if (!position) return;
-        
-        const scene = this.engine.renderer.scene;
-        if (!scene) return;
-        
-        // Create a canvas for the text
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 256;
-        canvas.height = 128;
-        
-        // Draw the text
-        context.font = 'bold 36px Arial';
-        context.fillStyle = '#' + color.toString(16).padStart(6, '0');
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText(text, canvas.width / 2, canvas.height / 2);
-        
-        // Create texture from canvas
-        const texture = new THREE.CanvasTexture(canvas);
-        
-        // Create sprite with text
-        const material = new THREE.SpriteMaterial({
-            map: texture,
-            transparent: true,
-            opacity: 1.0
-        });
-        
-        const sprite = new THREE.Sprite(material);
-        sprite.position.set(position.x, position.y + 3.0, position.z); // Position above enemy
-        sprite.scale.set(3, 1.5, 1); // Scale for better visibility
-        
-        // Add to scene
-        scene.add(sprite);
-        
-        // Animate rising and fading
-        const startTime = Date.now();
-        const duration = 1500; // 1.5 seconds
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Rise up
-            sprite.position.y = position.y + 3.0 + progress * 2;
-            
-            // Fade out in the second half of the animation
-            if (progress > 0.5) {
-                sprite.material.opacity = 2 * (1 - progress);
-            }
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                // Remove when animation is complete
-                scene.remove(sprite);
-                sprite.material.map.dispose();
-                sprite.material.dispose();
-            }
-        };
-        
-        // Start animation
-        animate();
-    }
-    
-    /**
-     * Update player movement based on input
-     */
-    updatePlayerMovement(deltaTime) {
-        if (!this.player) return;
-        
-        // Player entity now handles its own movement
-        this.player.update(deltaTime);
     }
     
     /**
@@ -981,5 +787,141 @@ export class GameplayState extends BaseState {
         if (this.gameplayUI && this.gameplayUI.parentNode) {
             this.gameplayUI.parentNode.removeChild(this.gameplayUI);
         }
+    }
+
+    /**
+     * Handle player death (game over)
+     */
+    onPlayerDeath() {
+        console.log("Game Over!");
+        
+        // Create game over popup
+        const gameOverPopup = document.createElement('div');
+        gameOverPopup.className = 'game-over-popup';
+        
+        gameOverPopup.innerHTML = `
+            <div class="game-over-container">
+                <h2>GAME OVER</h2>
+                <p>You were defeated!</p>
+                <button class="restart-button">Try Again</button>
+                <button class="menu-button">Main Menu</button>
+            </div>
+        `;
+        
+        // Add styles for game over popup
+        const style = document.createElement('style');
+        style.textContent = `
+            .game-over-popup {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-color: rgba(0, 0, 0, 0.7);
+                z-index: 1000;
+                pointer-events: auto;
+                animation: fadeIn 0.3s ease-out;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            
+            @keyframes slideIn {
+                from { transform: translateY(-20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            
+            .game-over-container {
+                background: linear-gradient(to bottom, #500, #300);
+                border-radius: 15px;
+                padding: 30px;
+                width: 400px;
+                text-align: center;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+                animation: slideIn 0.4s ease-out;
+                border: 2px solid #700;
+                color: white;
+            }
+            
+            .game-over-container h2 {
+                font-size: 36px;
+                margin-bottom: 15px;
+                color: #ff3333;
+                text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            }
+            
+            .game-over-container p {
+                font-size: 18px;
+                margin-bottom: 25px;
+            }
+            
+            .restart-button, .menu-button {
+                padding: 12px 25px;
+                font-size: 16px;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-weight: bold;
+                margin: 0 10px;
+                box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+            }
+            
+            .restart-button {
+                background-color: #ff5500;
+                color: white;
+            }
+            
+            .restart-button:hover {
+                background-color: #ff7700;
+                transform: translateY(-2px);
+            }
+            
+            .menu-button {
+                background-color: #333;
+                color: white;
+            }
+            
+            .menu-button:hover {
+                background-color: #555;
+                transform: translateY(-2px);
+            }
+        `;
+        
+        // Add to the UI container
+        this.uiContainer.appendChild(style);
+        this.uiContainer.appendChild(gameOverPopup);
+        
+        // Stop background music
+        this.pauseBackgroundMusic();
+        
+        // Add event listeners for buttons
+        const restartButton = gameOverPopup.querySelector('.restart-button');
+        const menuButton = gameOverPopup.querySelector('.menu-button');
+        
+        restartButton.addEventListener('click', () => {
+            // Remove the game over popup
+            if (gameOverPopup.parentNode) {
+                gameOverPopup.parentNode.removeChild(gameOverPopup);
+            }
+            
+            // Restart the gameplay state
+            this.engine.stateManager.changeState('gameplay');
+        });
+        
+        menuButton.addEventListener('click', () => {
+            // Remove the game over popup
+            if (gameOverPopup.parentNode) {
+                gameOverPopup.parentNode.removeChild(gameOverPopup);
+            }
+            
+            // Return to the main menu
+            this.engine.stateManager.changeState('menu');
+        });
     }
 }

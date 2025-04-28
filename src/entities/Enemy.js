@@ -346,33 +346,11 @@ export class Enemy extends Entity {
      * Update attack range indicator visibility based on player proximity
      */
     _updateRangeIndicator() {
-        // Create indicator if it doesn't exist
-        if (!this.rangeIndicator) {
-            this._createRangeIndicator();
+        // Range indicators are disabled for better gameplay experience
+        // If an indicator exists, make sure it's hidden
+        if (this.rangeIndicator) {
+            this.rangeIndicator.visible = false;
         }
-        
-        // Get player from the game state
-        const gameState = this.engine.stateManager.getCurrentState();
-        if (!gameState || !gameState.player) return;
-        
-        const player = gameState.player;
-        const playerPos = player.getPosition();
-        const enemyPos = this.getPosition();
-        
-        if (!playerPos || !enemyPos) return;
-        
-        // Update indicator position to match enemy position
-        this.rangeIndicator.position.x = enemyPos.x;
-        this.rangeIndicator.position.z = enemyPos.z;
-        
-        // Calculate distance to player
-        const distance = Math.sqrt(
-            Math.pow(playerPos.x - enemyPos.x, 2) + 
-            Math.pow(playerPos.z - enemyPos.z, 2)
-        );
-        
-        // Show indicator if player is close (within 3x attack range for better visibility)
-        this.rangeIndicator.visible = (distance <= this.attackRange * 3);
     }
     
     /**
@@ -490,14 +468,17 @@ export class Enemy extends Entity {
     /**
      * Make the enemy take damage
      */
-    takeDamage(amount) {
+    takeDamage(amount, damageType) {
+        // Log the damage with type
+        console.log(`Enemy ${this.name} taking ${amount.toFixed(1)} damage of type: ${damageType || 'default'}`);
+        
         const oldHealth = this.health;
         this.health -= amount;
         
         console.log(`Enemy ${this.name} Health: ${oldHealth.toFixed(1)} -> ${this.health.toFixed(1)} (damage: ${amount.toFixed(1)})`);
         
         // Show hit effect
-        this._showHitEffect();
+        this._showHitEffect(damageType);
         
         // Update health bar
         this._updateHealthBar();
@@ -513,8 +494,8 @@ export class Enemy extends Entity {
     /**
      * Show visual effect when enemy is hit
      */
-    _showHitEffect() {
-        console.log(`ENEMY HIT EFFECT: ${this.name}`);
+    _showHitEffect(damageType) {
+        console.log(`ENEMY HIT EFFECT: ${this.name} (${damageType || 'default'})`);
         
         // For sprite-based enemies
         const sprites = [];
@@ -711,9 +692,9 @@ export class Enemy extends Entity {
             this.playerProximityTimer = 0;
         }
         
-        // Always show range indicator when player is nearby
+        // Range indicators are disabled for better gameplay experience
         if (this.rangeIndicator) {
-            this.rangeIndicator.visible = true;
+            this.rangeIndicator.visible = false;
         }
     }
 }

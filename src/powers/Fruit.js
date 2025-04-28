@@ -2,6 +2,7 @@
  * Base class for all fruit powers
  */
 import * as THREE from 'three';
+import fruitStore from '../lib/FruitStore.js';
 
 export class Fruit {
     constructor(engine, options = {}) {
@@ -10,15 +11,16 @@ export class Fruit {
         this.type = options.type || 'unknown';
         this.power = options.power || 5;
         this.attacks = options.attacks || [];
-        this.cooldowns = {};
         
-        // Uses remaining for this fruit
-        this.usesRemaining = 1;
-        
-        // Initialize cooldowns for all attacks
-        this.attacks.forEach(attack => {
-            this.cooldowns[attack] = 0;
-        });
+        // Store this fruit in the shared store if not already there
+        if (!fruitStore.getFruit(this.name)) {
+            fruitStore.addFruit({
+                name: this.name,
+                type: this.type,
+                power: this.power,
+                attacks: this.attacks
+            });
+        }
         
         // Texture for the fruit
         this.texture = null;
@@ -91,20 +93,10 @@ export class Fruit {
      * This is the centralized method that handles common logic for all attacks
      */
     _useAttack(attackName, position, direction, attackFunction) {
-        // Check cooldown
-        if (this.isOnCooldown(attackName)) {
-            console.log(`${attackName} is on cooldown`);
+        // Use the shared fruit store to check cooldown and uses
+        if (!fruitStore.useAttack(this.name, attackName)) {
             return false;
         }
-        
-        // Check if we have any uses left
-        if (this.usesRemaining <= 0) {
-            console.log(`No uses remaining for ${this.name}`);
-            return false;
-        }
-        
-        // Decrement uses
-        this.usesRemaining--;
         
         // Play drop sound
         this.playDropSound();
@@ -112,7 +104,7 @@ export class Fruit {
         // Log fruit usage clearly
         console.log(`===== FRUIT USAGE: ${this.name} =====`);
         console.log(`Attack: ${attackName}`);
-        console.log(`Remaining uses: ${this.usesRemaining}`);
+        console.log(`Damage: ${fruitStore.getFruit(this.name).damageValues[attackName]}`);
         console.log(`==================================`);
         
         // Execute the attack-specific logic if provided
@@ -135,9 +127,9 @@ export class Fruit {
      * Add more uses to this fruit
      */
     addUses(amount) {
-        this.usesRemaining += amount;
-        console.log(`Added ${amount} uses to ${this.name}. Now has ${this.usesRemaining} uses remaining.`);
-        return this.usesRemaining;
+        fruitStore.addUses(this.name, amount);
+        const uses = fruitStore.getFruit(this.name).usesRemaining;
+        return uses;
     }
     
     /**
@@ -158,22 +150,34 @@ export class Fruit {
      * Check if an attack is on cooldown
      */
     isOnCooldown(attackName) {
-        return this.cooldowns[attackName] > 0;
+        const fruit = fruitStore.getFruit(this.name);
+        if (!fruit) return true;
+        
+        return fruit.currentCooldowns[attackName] > 0;
+    }
+    
+    /**
+     * Get cooldown percentage for an attack
+     */
+    getCooldownPercentage(attackName) {
+        return fruitStore.getCooldownPercentage(this.name, attackName);
+    }
+    
+    /**
+     * Get cooldown time remaining for an attack
+     */
+    getCooldownTimeRemaining(attackName) {
+        const fruit = fruitStore.getFruit(this.name);
+        if (!fruit) return 0;
+        
+        return fruit.currentCooldowns[attackName];
     }
     
     /**
      * Update the fruit's state
      */
     update(deltaTime) {
-        // Update cooldowns
-        for (const attack in this.cooldowns) {
-            if (this.cooldowns[attack] > 0) {
-                this.cooldowns[attack] -= deltaTime;
-                if (this.cooldowns[attack] < 0) {
-                    this.cooldowns[attack] = 0;
-                }
-            }
-        }
+        // The actual cooldown updates are now handled by the FruitStore
     }
     
     /**

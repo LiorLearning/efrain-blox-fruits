@@ -8,6 +8,7 @@ import { IceFruit } from '../powers/IceFruit.js';
 import { BombFruit } from '../powers/BombFruit.js';
 import { LightFruit } from '../powers/LightFruit.js';
 import { MagmaFruit } from '../powers/MagmaFruit.js';
+import fruitStore from '../lib/FruitStore.js';
 
 export class Player extends Entity {
     constructor(engine, options = {}) {
@@ -289,18 +290,26 @@ export class Player extends Entity {
      * Update player state
      */
     update(deltaTime) {
-        // Process movement
+        // Update player movement
         this._updateMovement(deltaTime);
         
-        // Update animations (if any)
+        // Update animations
         this._updateAnimations(deltaTime);
         
-        // Update attack cooldown
+        // Update cooldowns
         if (this.attackCooldown > 0) {
             this.attackCooldown -= deltaTime;
-            if (this.attackCooldown < 0) {
-                this.attackCooldown = 0;
-            }
+        }
+        
+        // Check for fruit uses from math challenges (key "M")
+        if (this.engine.input.isKeyPressed('KeyM') && !this.mathChallengeActive) {
+            this._startMathChallenge();
+        }
+        
+        // Get the selected fruit index from the gameplay state if available
+        const gameplayState = this.engine.stateManager.getCurrentStateInstance();
+        if (gameplayState && typeof gameplayState.selectedFruitIndex !== 'undefined') {
+            this.activeFruitIndex = gameplayState.selectedFruitIndex;
         }
     }
     
@@ -385,11 +394,6 @@ export class Player extends Entity {
         } else if (input.isKeyPressed('Digit5') && this.fruits.length >= 5) {
             this.activeFruitIndex = 4;
             this._updateFruitUI();
-        }
-        
-        // Handle math challenge trigger with M key
-        if (input.isKeyPressed('KeyM')) {
-            this._startMathChallenge();
         }
         
         // Handle basic attack with space
@@ -683,9 +687,13 @@ export class Player extends Entity {
     switchFruit(index) {
         if (index >= 0 && index < this.fruits.length) {
             this.activeFruitIndex = index;
-            return true;
+            
+            // Update the gameplay state's selected fruit index
+            const gameplayState = this.engine.stateManager.getCurrentStateInstance();
+            if (gameplayState && typeof gameplayState.selectFruit === 'function') {
+                gameplayState.selectFruit(index);
+            }
         }
-        return false;
     }
     
     /**
@@ -917,7 +925,7 @@ export class Player extends Entity {
                     );
                     
                     // Check when player gets close to a boss
-                    if (distance <= 8) {
+                    if (distance <= 5) {
                         // Update boss's awareness of player
                         if (typeof boss.onPlayerNearby === 'function') {
                             boss.onPlayerNearby(distance);
@@ -1050,8 +1058,8 @@ export class Player extends Entity {
         this.mathChallengeUI.innerHTML = `
             <div class="math-challenge-container">
                 <div class="math-challenge-header">
-                    <h2>Math Challenge for ${fruit.name}</h2>
-                    <p>Solve this problem to get ${this.mathRewardAmount} more uses!</p>
+                    <h2>Math Challenge</h2>
+                    <p>Solve to get <span class="reward-amount">${this.mathRewardAmount}</span> more ${fruit.name} uses!</p>
                 </div>
                 <div class="math-problem">
                     <span class="math-number">${problem.num1}</span>
@@ -1083,58 +1091,123 @@ export class Player extends Entity {
                 background-color: rgba(0, 0, 0, 0.7);
                 z-index: 100;
                 pointer-events: auto;
+                animation: fadeIn 0.3s ease-out;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            
+            @keyframes slideIn {
+                from { transform: translateY(-20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
             }
             
             .math-challenge-container {
-                background-color: #fff;
-                border-radius: 10px;
-                padding: 20px;
-                width: 400px;
+                background: linear-gradient(to bottom, #ffffff, #f5f5f5);
+                border-radius: 15px;
+                padding: 25px;
+                width: 450px;
                 text-align: center;
-                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                animation: slideIn 0.4s ease-out;
+                border: 1px solid #e0e0e0;
+            }
+            
+            .math-challenge-header {
+                position: relative;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid #f0f0f0;
+            }
+            
+            .reward-amount {
+                font-weight: bold;
+                color: #4caf50;
+                font-size: 1.2em;
             }
             
             .math-challenge-header h2 {
                 color: #333;
-                margin-top: 0;
+                margin: 15px 0 5px;
+                font-size: 24px;
+            }
+            
+            .math-challenge-header p {
+                color: #666;
+                margin: 8px 0;
+            }
+            
+            .difficulty-indicator {
+                font-size: 14px;
+                color: #777;
+                margin: 10px 0;
             }
             
             .math-problem {
-                font-size: 32px;
-                margin: 20px 0;
+                font-size: 36px;
+                margin: 30px 0;
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                gap: 10px;
+                gap: 15px;
             }
             
-            .math-number, .math-operation, .math-equals {
-                display: inline-block;
-                vertical-align: middle;
+            .math-number {
+                background-color: #f9f9f9;
+                border-radius: 8px;
+                padding: 10px 15px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                min-width: 40px;
+                text-align: center;
+            }
+            
+            .math-operation, .math-equals {
+                font-weight: bold;
+                color: #555;
             }
             
             .math-answer {
-                width: 80px;
-                height: 40px;
-                font-size: 24px;
+                width: 100px;
+                height: 60px;
+                font-size: 28px;
                 text-align: center;
-                border: 2px solid #ccc;
-                border-radius: 5px;
+                border: 2px solid #4caf50;
+                border-radius: 8px;
+                padding: 5px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                transition: all 0.2s;
+            }
+            
+            .math-answer:focus {
+                outline: none;
+                border-color: #2196F3;
+                box-shadow: 0 0 8px rgba(33, 150, 243, 0.5);
             }
             
             .math-controls {
-                margin-top: 20px;
+                margin-top: 25px;
                 display: flex;
                 justify-content: center;
-                gap: 10px;
+                gap: 15px;
             }
             
             .math-submit, .math-cancel {
-                padding: 10px 20px;
+                padding: 12px 25px;
                 font-size: 16px;
                 border: none;
-                border-radius: 5px;
+                border-radius: 8px;
                 cursor: pointer;
+                transition: all 0.2s;
+                font-weight: bold;
+                box-shadow: 0 3px 6px rgba(0,0,0,0.1);
             }
             
             .math-submit {
@@ -1142,23 +1215,41 @@ export class Player extends Entity {
                 color: white;
             }
             
+            .math-submit:hover {
+                background-color: #45a049;
+                transform: translateY(-2px);
+                box-shadow: 0 5px 10px rgba(0,0,0,0.15);
+            }
+            
             .math-cancel {
-                background-color: #f44336;
-                color: white;
+                background-color: #f5f5f5;
+                color: #555;
+                border: 1px solid #ddd;
+            }
+            
+            .math-cancel:hover {
+                background-color: #e9e9e9;
+                color: #333;
             }
             
             .math-result {
-                margin-top: 15px;
+                margin-top: 20px;
                 font-size: 18px;
                 min-height: 24px;
+                padding: 10px;
+                border-radius: 8px;
+                transition: all 0.3s;
             }
             
             .math-result.success {
-                color: #4caf50;
+                color: white;
+                background-color: rgba(76, 175, 80, 0.8);
+                animation: pulse 0.5s 2;
             }
             
             .math-result.error {
-                color: #f44336;
+                color: white;
+                background-color: rgba(244, 67, 54, 0.8);
             }
         `;
         
@@ -1195,6 +1286,20 @@ export class Player extends Entity {
     }
     
     /**
+     * Get color for fruit type
+     */
+    _getFruitColor(fruitType) {
+        switch (fruitType) {
+            case 'flame': return '#ff5722';
+            case 'ice': return '#2196f3';
+            case 'bomb': return '#9c27b0';
+            case 'light': return '#ffeb3b';
+            case 'magma': return '#f44336';
+            default: return '#4caf50';
+        }
+    }
+    
+    /**
      * Check the user's answer to the math problem
      */
     _checkMathAnswer() {
@@ -1227,7 +1332,7 @@ export class Player extends Entity {
         // Check if it's correct
         if (userAnswer === this.currentMathProblem.answer) {
             // Correct answer
-            resultDiv.textContent = 'Correct! You earned more fruit uses.';
+            resultDiv.textContent = '✓ Correct! You earned more fruit uses.';
             resultDiv.className = 'math-result success';
             
             // Get active fruit
@@ -1246,7 +1351,7 @@ export class Player extends Entity {
             }, 1500);
         } else {
             // Wrong answer
-            resultDiv.textContent = 'Incorrect. Try again!';
+            resultDiv.textContent = '✗ Incorrect. Try again!';
             resultDiv.className = 'math-result error';
             
             // Clear the input
