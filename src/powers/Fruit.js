@@ -253,7 +253,7 @@ export class Fruit {
         const effectGroup = new THREE.Group();
         
         // Add visual representation - a circle on the ground
-        const geometry = options.geometry || new THREE.CircleGeometry(options.radius || 5, 32);
+        const geometry = options.geometry || new THREE.CircleGeometry(options.radius || 7.5, 32);
         const material = options.material || new THREE.MeshBasicMaterial({ 
             color: options.color || 0xffffff,
             transparent: true,
@@ -272,7 +272,7 @@ export class Fruit {
             damage: options.damage || this.power / 2,
             lifetime: options.lifetime || 3, // seconds
             currentLifetime: 0,
-            radius: options.radius || 5,
+            radius: options.radius || 7.5,
             type: options.type || 'area',
             source: options.source || 'player',
             update: function(deltaTime) {
@@ -343,7 +343,7 @@ export class Fruit {
      * Check for enemies in attack range
      */
     checkEnemiesInRange(position, range, damage, damageType) {
-        range = 12; // Override range to 12
+        range = 18; // Override range to 18 (1.5x the original 12)
         console.log("Checking enemies in range", position, range, damage, damageType);
         const gameState = this.engine.stateManager.getCurrentState();
         if (!gameState) {
