@@ -31,6 +31,14 @@ export class IceFruit extends Fruit {
             return false;
         }
         
+        // Call parent method to handle usage count decrement
+        const result = super.useBasicAttack(position, direction);
+        
+        // If no uses remaining, return false
+        if (!result) {
+            return false;
+        }
+        
         // Create an ice spike projectile
         const iceSpike = this.createProjectile(position, direction, {
             geometry: new THREE.ConeGeometry(0.3, 1.5, 8),
@@ -81,6 +89,14 @@ export class IceFruit extends Fruit {
     useSpecialAttack(position, direction) {
         if (this.isOnCooldown('Ice Wall')) {
             console.log('Ice Wall is on cooldown');
+            return false;
+        }
+        
+        // Call parent method to handle usage count decrement
+        const result = super.useSpecialAttack(position, direction);
+        
+        // If no uses remaining, return false
+        if (!result) {
             return false;
         }
         

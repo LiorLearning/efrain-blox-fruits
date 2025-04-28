@@ -23,6 +23,54 @@ export class Fruit {
         // Texture for the fruit
         this.texture = null;
         this._loadTexture();
+        
+        // Audio setup
+        this.audioListener = null;
+        this._setupAudio();
+    }
+    
+    /**
+     * Set up audio
+     */
+    _setupAudio() {
+        // If there's a current state with an audio listener, use it
+        const currentState = this.engine.stateManager.getCurrentStateInstance();
+        if (currentState && currentState.audioListener) {
+            this.audioListener = currentState.audioListener;
+        } else if (this.engine.renderer && this.engine.renderer.camera) {
+            // Create a new audio listener if none exists
+            this.audioListener = new THREE.AudioListener();
+            this.engine.renderer.camera.add(this.audioListener);
+        }
+    }
+    
+    /**
+     * Play the drop sound
+     */
+    playDropSound() {
+        // Only play if sound is enabled
+        if (!this.engine.soundEnabled) return;
+        
+        // Need audio listener
+        if (!this.audioListener) {
+            this._setupAudio();
+            if (!this.audioListener) return;
+        }
+        
+        // Create audio source
+        const sound = new THREE.Audio(this.audioListener);
+        
+        // Get drop sound buffer
+        const dropSoundBuffer = this.engine.resources.getSound('dropSound');
+        
+        if (dropSoundBuffer) {
+            // Set buffer to audio source
+            sound.setBuffer(dropSoundBuffer);
+            // Set volume
+            sound.setVolume(0.5);
+            // Play sound
+            sound.play();
+        }
     }
     
     /**
@@ -50,6 +98,9 @@ export class Fruit {
         
         // Decrement uses
         this.usesRemaining--;
+        
+        // Play drop sound
+        this.playDropSound();
         
         // Log fruit usage clearly
         console.log(`===== FRUIT USAGE: ${this.name} =====`);
@@ -83,6 +134,9 @@ export class Fruit {
         // Decrement uses
         this.usesRemaining--;
         
+        // Play drop sound
+        this.playDropSound();
+        
         // Log fruit usage clearly
         console.log(`===== FRUIT USAGE: ${this.name} =====`);
         console.log(`Attack: Special Attack`);
@@ -98,6 +152,10 @@ export class Fruit {
      */
     useUltimateAttack(position, direction) {
         console.log(`Using ultimate attack for ${this.name}`);
+        
+        // Play drop sound
+        this.playDropSound();
+        
         // Override in subclasses
         return false;
     }

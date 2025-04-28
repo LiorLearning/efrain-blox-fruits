@@ -526,4 +526,23 @@ export class MiniBoss extends Entity {
             });
         }
     }
+    
+    /**
+     * Handle player being nearby
+     */
+    onPlayerNearby(distance) {
+        // If the player is within attack range, start chasing/attacking
+        if (distance <= this.attackRange * 1.2) {
+            // Switch to chase/attack mode
+            if (this.currentState !== 'chase' && this.currentState !== 'attack') {
+                this.currentState = 'chase';
+                console.log(`${this.name} is now chasing player!`);
+            }
+        }
+        
+        // Always show range indicator when player is nearby
+        if (this.rangeIndicator) {
+            this.rangeIndicator.visible = true;
+        }
+    }
 }

@@ -79,7 +79,9 @@ export class LoadingState extends BaseState {
             models: [],
             sounds: [
                 // Load background music
-                { name: 'bgMusic', path: 'assets/sounds/bg-music.mpeg' }
+                { name: 'bgMusic', path: 'assets/sounds/bg-music.mpeg' },
+                // Load drop sound effect
+                { name: 'dropSound', path: 'assets/sounds/drop.mp3' }
             ]
         };
         

@@ -31,6 +31,14 @@ export class FlameFruit extends Fruit {
             return false;
         }
         
+        // Call parent method to handle usage count decrement
+        const result = super.useBasicAttack(position, direction);
+        
+        // If no uses remaining, return false
+        if (!result) {
+            return false;
+        }
+        
         // Create a fireball projectile
         const fireball = this.createProjectile(position, direction, {
             geometry: new THREE.SphereGeometry(0.5, 8, 8),
@@ -77,6 +85,14 @@ export class FlameFruit extends Fruit {
     useSpecialAttack(position, direction) {
         if (this.isOnCooldown('Flame Wave')) {
             console.log('Flame Wave is on cooldown');
+            return false;
+        }
+        
+        // Call parent method to handle usage count decrement
+        const result = super.useSpecialAttack(position, direction);
+        
+        // If no uses remaining, return false
+        if (!result) {
             return false;
         }
         

@@ -429,15 +429,24 @@ export class Player extends Entity {
     _useBasicAttack() {
         // Check cooldown
         if (this.attackCooldown > 0) {
+            console.log(`Attack on cooldown: ${this.attackCooldown.toFixed(2)}s remaining`);
             return;
         }
+        
+        console.log("BASIC ATTACK TRIGGERED!");
         
         // Set cooldown
         this.attackCooldown = this.attackCooldownTime;
         
         // Get active fruit
         const fruit = this.getActiveFruit();
-        if (!fruit) return;
+        if (!fruit) {
+            console.log("No active fruit found!");
+            return;
+        }
+        
+        // Log fruit uses before attack
+        console.log(`BEFORE ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
         
         // Get player position and direction
         const position = this.getPosition();
@@ -466,16 +475,23 @@ export class Player extends Entity {
         // Use fruit's basic attack
         const attackResult = fruit.useBasicAttack(attackStartPosition, direction);
         
+        // Log fruit uses after attack
+        console.log(`AFTER ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
+        
         // Check for direct hits on enemies
         const gameState = this.engine.stateManager.getCurrentState();
         if (gameState && gameState.checkDirectAttackHits) {
             // Check for enemies in a cone in front of the player
             const attackRange = 5; // 5 units in front of the player
-            gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
+            console.log(`Checking for enemies in range: ${attackRange}`);
+            const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
+            console.log(`Hit any enemies: ${hitAny}`);
         }
         
-        // Update UI to reflect updated uses count
-        this._updateFruitUI();
+        // Force immediate UI update to reflect updated uses count
+        setTimeout(() => {
+            this._updateFruitUI();
+        }, 0);
         
         // Create visual feedback for attack
         this._createAttackEffect(attackStartPosition, direction, fruit.type);
@@ -487,12 +503,30 @@ export class Player extends Entity {
      * Use special attack with current fruit
      */
     _useSpecialAttack() {
+        // Check cooldown
+        if (this.attackCooldown > 0) {
+            console.log(`Attack on cooldown: ${this.attackCooldown.toFixed(2)}s remaining`);
+            return;
+        }
+        
+        console.log("SPECIAL ATTACK TRIGGERED!");
+        
+        // Set cooldown
+        this.attackCooldown = this.attackCooldownTime;
+        
         // Get active fruit
         const fruit = this.getActiveFruit();
-        if (!fruit) return;
+        if (!fruit) {
+            console.log("No active fruit found!");
+            return;
+        }
+        
+        // Log fruit uses before attack
+        console.log(`BEFORE SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
         
         // Check if the special attack is on cooldown
         if (fruit.isOnCooldown('special')) {
+            console.log(`Special attack for ${fruit.name} is on cooldown`);
             return;
         }
         
@@ -523,12 +557,17 @@ export class Player extends Entity {
         // Use fruit's special attack
         const attackResult = fruit.useSpecialAttack(attackStartPosition, direction);
         
+        // Log fruit uses after attack
+        console.log(`AFTER SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
+        
         // Check for direct hits on enemies
         const gameState = this.engine.stateManager.getCurrentState();
         if (gameState && gameState.checkDirectAttackHits) {
             // Special attacks have a wider range
             const attackRange = 8; // 8 units in front of the player
-            gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
+            console.log(`Checking for enemies in range: ${attackRange}`);
+            const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
+            console.log(`Hit any enemies: ${hitAny}`);
         }
         
         // Update UI to reflect updated uses count
@@ -770,9 +809,15 @@ export class Player extends Entity {
                     Math.pow(playerPos.z - enemyPos.z, 2)
                 );
                 
-                // Log when player gets close to a villain
+                // Check when player gets close to a villain
                 if (distance <= 5) {
                     console.log(`PROXIMITY ALERT: Near villain ${enemy.name} at distance ${distance.toFixed(2)}`);
+                    
+                    // Update enemy's awareness of player
+                    enemy.onPlayerNearby(distance);
+                    
+                    // Show visual indicator of enemy range
+                    enemy._updateRangeIndicator();
                 }
             });
         }
@@ -790,9 +835,15 @@ export class Player extends Entity {
                     Math.pow(playerPos.z - bossPos.z, 2)
                 );
                 
-                // Log when player gets close to a boss
+                // Check when player gets close to a boss
                 if (distance <= 8) {
                     console.log(`PROXIMITY ALERT: Near boss ${boss.name} at distance ${distance.toFixed(2)}`);
+                    
+                    // Update boss's awareness of player
+                    boss.onPlayerNearby(distance);
+                    
+                    // Show visual indicator of boss range
+                    boss._updateRangeIndicator();
                 }
             });
         }
