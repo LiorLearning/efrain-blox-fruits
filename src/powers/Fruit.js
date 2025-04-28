@@ -87,9 +87,16 @@ export class Fruit {
     }
     
     /**
-     * Use a basic attack
+     * Core attack usage logic for all fruits
+     * This is the centralized method that handles common logic for all attacks
      */
-    useBasicAttack(position, direction) {
+    _useAttack(attackName, position, direction, attackFunction) {
+        // Check cooldown
+        if (this.isOnCooldown(attackName)) {
+            console.log(`${attackName} is on cooldown`);
+            return false;
+        }
+        
         // Check if we have any uses left
         if (this.usesRemaining <= 0) {
             console.log(`No uses remaining for ${this.name}`);
@@ -104,12 +111,24 @@ export class Fruit {
         
         // Log fruit usage clearly
         console.log(`===== FRUIT USAGE: ${this.name} =====`);
-        console.log(`Attack: Basic Attack`);
+        console.log(`Attack: ${attackName}`);
         console.log(`Remaining uses: ${this.usesRemaining}`);
         console.log(`==================================`);
         
-        // Override in subclasses
-        return false;
+        // Execute the attack-specific logic if provided
+        let result = true;
+        if (typeof attackFunction === 'function') {
+            result = attackFunction(position, direction);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Use a basic attack
+     */
+    useBasicAttack(position, direction) {
+        return this._useAttack('Basic Attack', position, direction);
     }
     
     /**
@@ -125,39 +144,14 @@ export class Fruit {
      * Use a special attack
      */
     useSpecialAttack(position, direction) {
-        // Check if we have any uses left
-        if (this.usesRemaining <= 0) {
-            console.log(`No uses remaining for ${this.name}`);
-            return false;
-        }
-        
-        // Decrement uses
-        this.usesRemaining--;
-        
-        // Play drop sound
-        this.playDropSound();
-        
-        // Log fruit usage clearly
-        console.log(`===== FRUIT USAGE: ${this.name} =====`);
-        console.log(`Attack: Special Attack`);
-        console.log(`Remaining uses: ${this.usesRemaining}`);
-        console.log(`==================================`);
-        
-        // Override in subclasses
-        return false;
+        return this._useAttack('Special Attack', position, direction);
     }
     
     /**
      * Use an ultimate attack
      */
     useUltimateAttack(position, direction) {
-        console.log(`Using ultimate attack for ${this.name}`);
-        
-        // Play drop sound
-        this.playDropSound();
-        
-        // Override in subclasses
-        return false;
+        return this._useAttack('Ultimate Attack', position, direction);
     }
     
     /**
@@ -235,6 +229,12 @@ export class Fruit {
         // Add to scene
         scene.add(projectileGroup);
         
+        // Track the projectile in engine effects
+        if (!this.engine.effectsToUpdate) {
+            this.engine.effectsToUpdate = [];
+        }
+        this.engine.effectsToUpdate.push(projectileGroup);
+        
         return projectileGroup;
     }
     
@@ -292,6 +292,226 @@ export class Fruit {
         // Add to scene
         scene.add(effectGroup);
         
+        // Track the effect in engine
+        if (!this.engine.effectsToUpdate) {
+            this.engine.effectsToUpdate = [];
+        }
+        this.engine.effectsToUpdate.push(effectGroup);
+        
         return effectGroup;
+    }
+    
+    /**
+     * Create particle effects
+     */
+    createParticle(position, options = {}) {
+        const scene = this.engine.renderer.scene;
+        if (!scene) return null;
+        
+        // Default options
+        const size = options.size || 0.2;
+        const color = options.color || 0xffffff;
+        const lifetime = options.lifetime || 1.0;
+        const geometry = options.geometry || new THREE.SphereGeometry(size, 8, 8);
+        
+        // Create material
+        const material = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: options.opacity || 0.8
+        });
+        
+        // Create particle
+        const particle = new THREE.Mesh(geometry, material);
+        particle.position.copy(position);
+        
+        // Add rotation if specified
+        if (options.randomRotation) {
+            particle.rotation.x = Math.random() * Math.PI * 2;
+            particle.rotation.y = Math.random() * Math.PI * 2;
+            particle.rotation.z = Math.random() * Math.PI * 2;
+        }
+        
+        // Set up particle movement
+        const velocity = options.velocity || new THREE.Vector3(
+            (Math.random() - 0.5) * (options.velocityFactor || 1),
+            (Math.random() - 0.5) * (options.velocityFactor || 1),
+            (Math.random() - 0.5) * (options.velocityFactor || 1)
+        );
+        
+        // Add light if specified
+        if (options.addLight) {
+            const light = new THREE.PointLight(color, options.lightIntensity || 0.5, options.lightDistance || 3);
+            particle.add(light);
+        }
+        
+        // Set up update function
+        particle.userData = {
+            velocity: velocity,
+            gravity: options.gravity || 0,
+            lifetime: lifetime,
+            currentLifetime: 0,
+            update: function(deltaTime) {
+                // Apply gravity if present
+                if (this.userData.gravity) {
+                    this.userData.velocity.y -= this.userData.gravity * deltaTime;
+                }
+                
+                // Update position
+                this.position.x += this.userData.velocity.x * deltaTime;
+                this.position.y += this.userData.velocity.y * deltaTime;
+                this.position.z += this.userData.velocity.z * deltaTime;
+                
+                // Handle bounce logic if enabled
+                if (options.bounce && this.position.y <= 0.1 && this.userData.velocity.y < 0) {
+                    this.userData.velocity.y = -this.userData.velocity.y * (options.bounceFactor || 0.3);
+                    this.position.y = 0.1;
+                    
+                    // Create splash particles if specified
+                    if (options.createSplash && typeof options.createSplash === 'function') {
+                        options.createSplash(this.position.clone());
+                    }
+                }
+                
+                // Apply rotation if specified
+                if (options.spinRate) {
+                    this.rotation.x += options.spinRate.x || 0;
+                    this.rotation.y += options.spinRate.y || 0;
+                    this.rotation.z += options.spinRate.z || 0;
+                }
+                
+                // Update lifetime
+                this.userData.currentLifetime += deltaTime;
+                const progress = this.userData.currentLifetime / this.userData.lifetime;
+                
+                // Scale changes if specified
+                if (options.scale) {
+                    const scale = options.scale(progress);
+                    this.scale.set(scale, scale, scale);
+                }
+                
+                // Fade out
+                if (options.customFade) {
+                    this.material.opacity = options.customFade(progress);
+                } else {
+                    // Default fade out near the end
+                    const fadeStart = options.fadeStart || 0.7;
+                    if (progress > fadeStart) {
+                        const fadeProgress = (progress - fadeStart) / (1 - fadeStart);
+                        this.material.opacity = (options.opacity || 0.8) * (1 - fadeProgress);
+                        
+                        // Fade light if present
+                        if (this.children.length > 0 && this.children[0].isLight) {
+                            this.children[0].intensity = (options.lightIntensity || 0.5) * (1 - fadeProgress);
+                        }
+                    }
+                }
+                
+                // Destroy if lifetime is exceeded
+                if (progress >= 1) {
+                    scene.remove(this);
+                    this.geometry.dispose();
+                    this.material.dispose();
+                    return false;
+                }
+                
+                return true;
+            }.bind(particle)
+        };
+        
+        // Add to scene
+        scene.add(particle);
+        
+        // Track the particle in engine
+        if (!this.engine.effectsToUpdate) {
+            this.engine.effectsToUpdate = [];
+        }
+        this.engine.effectsToUpdate.push(particle);
+        
+        return particle;
+    }
+    
+    /**
+     * Get player facing direction
+     */
+    getPlayerFacingDirection() {
+        const player = this.engine.player;
+        if (!player || !player.object3D) {
+            return new THREE.Vector3(0, 0, -1); // Default forward
+        }
+        
+        // Calculate attack direction based on player orientation
+        let direction = new THREE.Vector3(0, 0, -1); // Default: forward
+        
+        // Get facing angle from either the sprite or the 3D model
+        let facingAngle = 0;
+        if (player.object3D.userData.facingAngle !== undefined) {
+            facingAngle = player.object3D.userData.facingAngle;
+        } else {
+            facingAngle = player.object3D.rotation.y;
+        }
+        
+        // Apply rotation to direction vector
+        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), facingAngle);
+        
+        return direction;
+    }
+    
+    /**
+     * Check for enemies in attack range
+     */
+    checkEnemiesInRange(position, range, damage, damageType) {
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (!gameState || !gameState.enemies || !Array.isArray(gameState.enemies)) {
+            return false;
+        }
+        
+        let hitAny = false;
+        
+        // Check all enemies
+        for (const enemy of gameState.enemies) {
+            if (!enemy || !enemy.getPosition || !enemy.takeDamage) continue;
+            
+            const enemyPos = enemy.getPosition();
+            if (!enemyPos) continue;
+            
+            const dist = Math.sqrt(
+                Math.pow(position.x - enemyPos.x, 2) + 
+                Math.pow(position.z - enemyPos.z, 2)
+            );
+            
+            if (dist <= range) {
+                // Calculate damage with falloff
+                const falloff = 1 - (dist / range);
+                const damageAmount = damage * falloff;
+                
+                // Apply damage
+                enemy.takeDamage(damageAmount, damageType);
+                hitAny = true;
+            }
+        }
+        
+        // Check boss if exists
+        if (gameState.boss && gameState.boss.getPosition && gameState.boss.takeDamage) {
+            const bossPos = gameState.boss.getPosition();
+            if (bossPos) {
+                const dist = Math.sqrt(
+                    Math.pow(position.x - bossPos.x, 2) + 
+                    Math.pow(position.z - bossPos.z, 2)
+                );
+                
+                if (dist <= range) {
+                    // Calculate damage with falloff
+                    const falloff = 1 - (dist / range);
+                    const damageAmount = damage * falloff;
+                    
+                    // Apply damage
+                    gameState.boss.takeDamage(damageAmount, damageType);
+                    hitAny = true;
+                }
+            }
+        }
+        
+        return hitAny;
     }
 }

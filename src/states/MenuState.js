@@ -279,7 +279,7 @@ export class MenuState extends BaseState {
         this.menuUI.innerHTML = `
             <div class="menu-title">Blox Fruits</div>
             <div class="menu-subtitle">A Fruit Adventure Game</div>
-            <div class="menu-instructions">Click on the glowing island to start your adventure!</div>
+            <div class="menu-instructions">Click to start your adventure!</div>
         `;
         
         // Add some basic styling
