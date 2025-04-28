@@ -51,7 +51,12 @@ export class Fruit {
         // Decrement uses
         this.usesRemaining--;
         
-        console.log(`Using basic attack for ${this.name}. Uses remaining: ${this.usesRemaining}`);
+        // Log fruit usage clearly
+        console.log(`===== FRUIT USAGE: ${this.name} =====`);
+        console.log(`Attack: Basic Attack`);
+        console.log(`Remaining uses: ${this.usesRemaining}`);
+        console.log(`==================================`);
+        
         // Override in subclasses
         return false;
     }
@@ -69,7 +74,21 @@ export class Fruit {
      * Use a special attack
      */
     useSpecialAttack(position, direction) {
-        console.log(`Using special attack for ${this.name}`);
+        // Check if we have any uses left
+        if (this.usesRemaining <= 0) {
+            console.log(`No uses remaining for ${this.name}`);
+            return false;
+        }
+        
+        // Decrement uses
+        this.usesRemaining--;
+        
+        // Log fruit usage clearly
+        console.log(`===== FRUIT USAGE: ${this.name} =====`);
+        console.log(`Attack: Special Attack`);
+        console.log(`Remaining uses: ${this.usesRemaining}`);
+        console.log(`==================================`);
+        
         // Override in subclasses
         return false;
     }

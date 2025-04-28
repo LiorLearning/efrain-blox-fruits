@@ -133,3 +133,39 @@ body, html {
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
 }
+
+/* Sound toggle button */
+.sound-toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 50;
+    pointer-events: auto;
+    transition: all 0.2s ease;
+}
+
+.sound-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+    transform: scale(1.1);
+}
+
+.sound-toggle i {
+    color: white;
+    font-size: 20px;
+}
+
+.sound-toggle.muted i:before {
+    content: "\f026"; /* Font Awesome muted icon */
+}
+
+.sound-toggle:not(.muted) i:before {
+    content: "\f028"; /* Font Awesome sound icon */
+}

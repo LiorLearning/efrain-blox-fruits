@@ -77,7 +77,10 @@ export class LoadingState extends BaseState {
                 { name: 'magmaFruit', path: 'assets/models/fruits/MagmaFruit.png' }
             ],
             models: [],
-            sounds: []
+            sounds: [
+                // Load background music
+                { name: 'bgMusic', path: 'assets/sounds/bg-music.mpeg' }
+            ]
         };
         
         // Start loading resources

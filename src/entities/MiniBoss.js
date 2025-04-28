@@ -393,26 +393,59 @@ export class MiniBoss extends Entity {
      * Show visual effect when boss is hit
      */
     _showHitEffect() {
-        // Flash the boss red when hit
-        this.object3D.traverse((object) => {
-            if (object.material && !(object instanceof THREE.Sprite)) {
-                // Store original color
-                if (!object.userData) object.userData = {};
-                if (!object.userData.originalColor && object.material.color) {
-                    object.userData.originalColor = object.material.color.clone();
-                }
-                
-                // Set to red
-                object.material.color.set(0xff0000);
-                
-                // Revert back after a short delay
-                setTimeout(() => {
-                    if (object.userData.originalColor) {
-                        object.material.color.copy(object.userData.originalColor);
-                    }
-                }, 200);
+        console.log(`BOSS HIT EFFECT: ${this.name}`);
+        
+        // For sprite-based bosses
+        const sprites = [];
+        this.object3D.traverse(object => {
+            if (object instanceof THREE.Sprite) {
+                sprites.push(object);
             }
         });
+        
+        // If we found sprites, handle them directly
+        if (sprites.length > 0) {
+            sprites.forEach(sprite => {
+                console.log("Applying hit effect to boss sprite");
+                // Store original color
+                if (!sprite.userData) sprite.userData = {};
+                if (!sprite.userData.originalColor) {
+                    sprite.userData.originalColor = sprite.material.color.clone();
+                }
+                
+                // Set to bright red
+                sprite.material.color.set(0xff0000);
+                
+                // Create a brief flash effect
+                setTimeout(() => {
+                    if (sprite.userData.originalColor) {
+                        sprite.material.color.copy(sprite.userData.originalColor);
+                    }
+                }, 200);
+            });
+        } else {
+            // Handle regular meshes
+            this.object3D.traverse((object) => {
+                if (object.material) {
+                    console.log("Applying hit effect to boss mesh");
+                    // Store original color
+                    if (!object.userData) object.userData = {};
+                    if (!object.userData.originalColor && object.material.color) {
+                        object.userData.originalColor = object.material.color.clone();
+                    }
+                    
+                    // Set to red
+                    object.material.color.set(0xff0000);
+                    
+                    // Revert back after a short delay
+                    setTimeout(() => {
+                        if (object.userData.originalColor) {
+                            object.material.color.copy(object.userData.originalColor);
+                        }
+                    }, 200);
+                }
+            });
+        }
     }
     
     /**

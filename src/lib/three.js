@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+// Import Three.js Audio components
+import { AudioListener, Audio, AudioLoader } from 'three';
+
 // Export THREE both as default and named exports
 export default THREE;
 export * from 'three';

@@ -33,6 +33,9 @@ export class Engine {
         this.stateManager.registerState('fruitSelect', new FruitSelectState(this));
         this.stateManager.registerState('gameplay', new GameplayState(this));
         
+        // Sound settings
+        this.soundEnabled = true;
+        
         // Event handling
         this._setupEventListeners();
     }
@@ -108,10 +111,63 @@ export class Engine {
     }
     
     /**
+     * Resize the game view
+     */
+    resize(width, height) {
+        this.config.renderer.width = width;
+        this.config.renderer.height = height;
+        
+        this.renderer.resize(width, height);
+    }
+    
+    /**
      * Set up event listeners
      */
     _setupEventListeners() {
-        // Add any global event listeners here
+        window.addEventListener('resize', () => {
+            this._onResize();
+        });
+        
+        // Set up sound toggle
+        const soundToggle = document.getElementById('sound-toggle');
+        if (soundToggle) {
+            soundToggle.addEventListener('click', () => {
+                this.toggleSound();
+            });
+        }
+    }
+    
+    /**
+     * Toggle sound on/off
+     */
+    toggleSound() {
+        this.soundEnabled = !this.soundEnabled;
+        
+        // Update the sound toggle button UI
+        const soundToggle = document.getElementById('sound-toggle');
+        if (soundToggle) {
+            if (this.soundEnabled) {
+                soundToggle.classList.remove('muted');
+                soundToggle.querySelector('i').className = 'fas fa-volume-high';
+            } else {
+                soundToggle.classList.add('muted');
+                soundToggle.querySelector('i').className = 'fas fa-volume-xmark';
+            }
+        }
+        
+        // Toggle sound in current state
+        const currentState = this.stateManager.getCurrentStateInstance();
+        if (currentState && typeof currentState.bgMusic !== 'undefined') {
+            if (this.soundEnabled) {
+                if (typeof currentState.playBackgroundMusic === 'function') {
+                    currentState.playBackgroundMusic();
+                }
+            } else {
+                if (typeof currentState.stopBackgroundMusic === 'function') {
+                    currentState.stopBackgroundMusic();
+                }
+            }
+        }
     }
     
     /**

@@ -103,6 +103,8 @@ export class Player extends Entity {
      * Update UI to reflect current active fruit
      */
     _updateFruitUI() {
+        console.log(`UPDATING FRUIT UI - Active fruit: ${this.activeFruitIndex}`);
+        
         // Find all fruit power items
         const fruitItems = document.querySelectorAll('.fruit-power-item');
         
@@ -117,6 +119,13 @@ export class Player extends Entity {
             activeItem.classList.add('active');
         }
         
+        // Log all fruits and their uses
+        console.log("==== ALL FRUIT COUNTS ====");
+        this.fruits.forEach((fruit, idx) => {
+            console.log(`Fruit ${idx+1}: ${fruit.name} - Uses remaining: ${fruit.usesRemaining}`);
+        });
+        console.log("=========================");
+        
         // Update uses count for all fruits
         fruitItems.forEach((item, index) => {
             if (index < this.fruits.length) {
@@ -128,6 +137,7 @@ export class Player extends Entity {
                     usesCounter = document.createElement('div');
                     usesCounter.className = 'fruit-uses-counter';
                     item.appendChild(usesCounter);
+                    console.log(`Created new counter for fruit ${index+1}`);
                 }
                 
                 // Update counter text
@@ -161,6 +171,7 @@ export class Player extends Entity {
                     align-items: center;
                     justify-content: center;
                     font-weight: bold;
+                    z-index: 100;
                 }
                 
                 .fruit-uses-counter.no-uses {

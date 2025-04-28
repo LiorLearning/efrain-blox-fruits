@@ -18,6 +18,10 @@ export class GameplayState extends BaseState {
         this.enemies = [];
         this.boss = null;
         this.currentIsland = null;
+        
+        // Background music
+        this.bgMusic = null;
+        this.audioListener = null;
     }
     
     /**
@@ -25,6 +29,63 @@ export class GameplayState extends BaseState {
      */
     init() {
         super.init();
+        
+        // Initialize audio
+        this.setupAudio();
+    }
+    
+    /**
+     * Set up audio for the game
+     */
+    setupAudio() {
+        // Create an audio listener
+        this.audioListener = new THREE.AudioListener();
+        this.engine.renderer.camera.add(this.audioListener);
+        
+        // Create a global Audio source for background music
+        this.bgMusic = new THREE.Audio(this.audioListener);
+    }
+    
+    /**
+     * Play background music
+     */
+    playBackgroundMusic() {
+        // Only play if not already playing and sound is enabled
+        if (this.bgMusic && !this.bgMusic.isPlaying && this.engine.soundEnabled) {
+            // Get the loaded audio buffer
+            const audioBuffer = this.engine.resources.getSound('bgMusic');
+            
+            if (audioBuffer) {
+                // Set the audio buffer to the audio source
+                this.bgMusic.setBuffer(audioBuffer);
+                // Set to loop
+                this.bgMusic.setLoop(true);
+                // Set volume
+                this.bgMusic.setVolume(0.5);
+                // Play the audio
+                this.bgMusic.play();
+            } else {
+                console.warn('Background music not loaded');
+            }
+        }
+    }
+    
+    /**
+     * Pause background music
+     */
+    pauseBackgroundMusic() {
+        if (this.bgMusic && this.bgMusic.isPlaying) {
+            this.bgMusic.pause();
+        }
+    }
+    
+    /**
+     * Stop background music
+     */
+    stopBackgroundMusic() {
+        if (this.bgMusic) {
+            this.bgMusic.stop();
+        }
     }
     
     /**
@@ -47,6 +108,9 @@ export class GameplayState extends BaseState {
         
         // Set camera for following player
         this.setupCamera();
+        
+        // Start playing background music
+        this.playBackgroundMusic();
     }
     
     /**
@@ -536,6 +600,7 @@ export class GameplayState extends BaseState {
                 // Check for collision
                 if (distance < enemyRadius + projectileRadius) {
                     // Collision detected!
+                    console.log(`Projectile hit! Enemy: ${enemy.name}, Distance: ${distance.toFixed(2)}, Combined radius: ${(enemyRadius + projectileRadius).toFixed(2)}`);
                     
                     // Apply different damage based on enemy type
                     let damage = projectile.userData.damage;
@@ -568,6 +633,9 @@ export class GameplayState extends BaseState {
                     
                     // Deal damage to enemy
                     enemy.takeDamage(damage);
+                    
+                    // Explicitly call the hit effect on the enemy
+                    enemy._showHitEffect();
                     
                     // Special effects based on projectile type
                     this.createHitEffect(projectile, enemy);
@@ -682,6 +750,7 @@ export class GameplayState extends BaseState {
             // Check if enemy is within attack range
             if (distance <= range) {
                 // Enemy is in attack range!
+                console.log(`Enemy ${enemy.name} in attack range! Distance: ${distance.toFixed(2)}, Range: ${range}`);
                 hitAny = true;
                 
                 // Apply different damage based on enemy type
@@ -713,7 +782,10 @@ export class GameplayState extends BaseState {
                 // Deal damage to enemy
                 enemy.takeDamage(finalDamage);
                 
-                // Create hit effect
+                // Create hit effect - explicitly call showHitEffect on the enemy
+                enemy._showHitEffect();
+                
+                // Create visual hit effect at the hit position
                 const hitEffect = {
                     userData: {
                         type: attackType
@@ -940,6 +1012,9 @@ export class GameplayState extends BaseState {
      */
     exit() {
         super.exit();
+        
+        // Stop the background music
+        this.stopBackgroundMusic();
         
         // Remove UI
         this.removeUI();

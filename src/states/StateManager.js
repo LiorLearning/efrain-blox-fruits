@@ -103,6 +103,13 @@ export class StateManager {
   }
   
   /**
+   * Get the current state instance
+   */
+  getCurrentStateInstance() {
+      return this.currentState;
+  }
+  
+  /**
    * Get the name of the current state
    */
   getCurrentStateName() {

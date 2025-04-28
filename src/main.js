@@ -1,5 +1,5 @@
 /**
- * Main entry point for the Blok Fruits game
+ * Main entry point for the Blox Fruits game
  */
 import { Engine } from './core/Engine.js';
 import { config } from './config.js';
