@@ -43,6 +43,10 @@ export class Player extends Entity {
         this.currentMathProblem = null;
         this.mathRewardAmount = 3; // Default number of uses added on success
         
+        // Danger sign system
+        this.dangerSignElement = null;
+        this.isInDanger = false;
+        
         // Initialize player
         this._init();
     }
@@ -75,6 +79,9 @@ export class Player extends Entity {
         setTimeout(() => {
             this._updateFruitUI();
         }, 500); // Short delay to ensure UI elements are created
+        
+        // Create the danger sign element
+        this._createDangerSignUI();
     }
     
     /**
@@ -471,7 +478,7 @@ export class Player extends Entity {
         
         // Check if there are enemies in range BEFORE using attack
         const gameState = this.engine.stateManager.getCurrentState();
-        const attackRange = 5; // 5 units in front of the player
+        const attackRange = 8; // Increased from 5 to 8 units in front of the player
         
         // Get all enemies
         const enemies = [];
@@ -591,7 +598,7 @@ export class Player extends Entity {
         
         // Check if there are enemies in range BEFORE using attack
         const gameState = this.engine.stateManager.getCurrentState();
-        const attackRange = 8; // Special attacks have wider range (8 units)
+        const attackRange = 12; // Increased from 8 to 12 units for special attacks
         
         // Get all enemies
         const enemies = [];
@@ -885,6 +892,9 @@ export class Player extends Entity {
         const playerPos = this.getPosition();
         if (!playerPos) return;
 
+        // Track if player is in danger from any enemy
+        let playerInDanger = false;
+        
         // Check proximity to regular enemies
         if (gameState.enemies && Array.isArray(gameState.enemies)) {
             gameState.enemies.forEach(enemy => {
@@ -908,6 +918,11 @@ export class Player extends Entity {
                     // Show visual indicator of enemy range
                     if (typeof enemy._updateRangeIndicator === 'function') {
                         enemy._updateRangeIndicator();
+                    }
+                    
+                    // Mark player as in danger if very close (based on attack range)
+                    if (distance <= enemy.attackRange) {
+                        playerInDanger = true;
                     }
                 }
             });
@@ -935,9 +950,20 @@ export class Player extends Entity {
                         if (typeof boss._updateRangeIndicator === 'function') {
                             boss._updateRangeIndicator();
                         }
+                        
+                        // Mark player as in danger if very close to boss (based on attack range)
+                        if (distance <= boss.attackRange) {
+                            playerInDanger = true;
+                        }
                     }
                 }
             }
+        }
+        
+        // Update danger sign based on proximity
+        if (playerInDanger !== this.isInDanger) {
+            this.isInDanger = playerInDanger;
+            this._updateDangerSign(playerInDanger);
         }
     }
     
@@ -1380,10 +1406,93 @@ export class Player extends Entity {
         this.mathChallengeActive = false;
     }
     
+    /**
+     * Create UI element for the danger sign
+     */
+    _createDangerSignUI() {
+        // Get the UI container
+        const uiContainer = document.getElementById('ui-container');
+        if (!uiContainer) return;
+        
+        // Create danger sign element if it doesn't exist yet
+        if (!this.dangerSignElement) {
+            this.dangerSignElement = document.createElement('div');
+            this.dangerSignElement.className = 'danger-sign';
+            this.dangerSignElement.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>DANGER</span>
+            `;
+            uiContainer.appendChild(this.dangerSignElement);
+            
+            // Add style for the danger sign if it doesn't exist
+            if (!document.querySelector('#danger-sign-style')) {
+                const style = document.createElement('style');
+                style.id = 'danger-sign-style';
+                style.textContent = `
+                    .danger-sign {
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background-color: rgba(255, 0, 0, 0.7);
+                        color: white;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        font-size: 24px;
+                        font-weight: bold;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 10px;
+                        opacity: 0;
+                        pointer-events: none;
+                        transition: opacity 0.3s ease;
+                        z-index: 1000;
+                    }
+                    
+                    .danger-sign.visible {
+                        opacity: 1;
+                        animation: pulse 1s infinite alternate;
+                    }
+                    
+                    .danger-sign i {
+                        font-size: 28px;
+                    }
+                    
+                    @keyframes pulse {
+                        0% {
+                            transform: translate(-50%, -50%) scale(1);
+                        }
+                        100% {
+                            transform: translate(-50%, -50%) scale(1.1);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        
+        // Initially hide the danger sign
+        this._updateDangerSign(false);
+    }
+    
+    /**
+     * Update the danger sign visibility
+     */
+    _updateDangerSign(isInDanger) {
+        if (!this.dangerSignElement) return;
+        
+        if (isInDanger) {
+            this.dangerSignElement.classList.add('visible');
+        } else {
+            this.dangerSignElement.classList.remove('visible');
+        }
+    }
+    
     destroy() {
-        // Remove from scene
-        if (this.object3D && this.object3D.parent) {
-            this.object3D.parent.remove(this.object3D);
+        // Remove player from scene
+        if (this.object3D && this.engine && this.engine.renderer) {
+            this.engine.renderer.remove(this.object3D);
         }
         
         // Dispose of geometries and materials
@@ -1405,5 +1514,16 @@ export class Player extends Entity {
         
         // Clean up math challenge UI if it exists
         this._closeMathChallenge();
+        
+        // Remove the danger sign UI if it exists
+        if (this.dangerSignElement && this.dangerSignElement.parentNode) {
+            this.dangerSignElement.parentNode.removeChild(this.dangerSignElement);
+        }
+        
+        // Remove danger sign style if it exists
+        const dangerSignStyle = document.getElementById('danger-sign-style');
+        if (dangerSignStyle && dangerSignStyle.parentNode) {
+            dangerSignStyle.parentNode.removeChild(dangerSignStyle);
+        }
     }
 }

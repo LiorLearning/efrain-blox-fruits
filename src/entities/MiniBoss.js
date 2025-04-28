@@ -13,7 +13,7 @@ export class MiniBoss extends Entity {
         this.maxHealth = options.maxHealth || 200;
         this.speed = options.speed || 2;
         this.attackPower = options.attackPower || 25;
-        this.attackRange = options.attackRange || 5; // Attack range in units (same as enemy/player)
+        this.attackRange = options.attackRange || 10; // Increased attack range from 5 to 10 units
         
         // Boss abilities
         this.abilities = options.abilities || [];

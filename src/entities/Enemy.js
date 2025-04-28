@@ -13,7 +13,7 @@ export class Enemy extends Entity {
         this.maxHealth = options.maxHealth || 50;
         this.speed = options.speed || 3;
         this.attackPower = options.attackPower || 10;
-        this.attackRange = options.attackRange || 5; // Attack range in units
+        this.attackRange = options.attackRange || 8; // Increased attack range from 5 to 8 units
         
         // Create 3D representation
         this.object3D = this._createEnemyModel();

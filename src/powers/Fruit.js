@@ -343,31 +343,50 @@ export class Fruit {
      * Check for enemies in attack range
      */
     checkEnemiesInRange(position, range, damage, damageType) {
+        range = 12; // Override range to 12
+        console.log("Checking enemies in range", position, range, damage, damageType);
         const gameState = this.engine.stateManager.getCurrentState();
-        if (!gameState || !gameState.enemies || !Array.isArray(gameState.enemies)) {
+        if (!gameState) {
+            console.log("No game state found");
+            return false;
+        }
+        
+        if (!gameState.enemies || !Array.isArray(gameState.enemies)) {
+            console.log("No enemies array found in game state");
             return false;
         }
         
         let hitAny = false;
+        console.log(`Checking enemies in range ${range} at position (${position.x}, ${position.z})`);
+        console.log(`Damage: ${damage}, Type: ${damageType}`);
         
         // Check all enemies
         for (const enemy of gameState.enemies) {
-            if (!enemy || !enemy.getPosition || !enemy.takeDamage) continue;
+            if (!enemy || !enemy.getPosition || !enemy.takeDamage) {
+                console.log("Found enemy without proper methods");
+                continue;
+            }
             
             const enemyPos = enemy.getPosition();
-            if (!enemyPos) continue;
+            if (!enemyPos) {
+                console.log("Enemy position not available");
+                continue;
+            }
             
             const dist = Math.sqrt(
                 Math.pow(position.x - enemyPos.x, 2) + 
                 Math.pow(position.z - enemyPos.z, 2)
             );
             
+            console.log(`Enemy ${enemy.name} at distance ${dist.toFixed(2)} (range: ${range})`);
+            
             if (dist <= range) {
                 // Calculate damage with falloff
                 const falloff = 1 - (dist / range);
-                const damageAmount = damage * falloff;
+                const damageAmount = Math.max(1, damage * falloff); // Ensure at least 1 damage
                 
                 // Apply damage
+                console.log(`Hitting enemy ${enemy.name} with ${damageAmount.toFixed(1)} damage`);
                 enemy.takeDamage(damageAmount, damageType);
                 hitAny = true;
             }
@@ -382,16 +401,25 @@ export class Fruit {
                     Math.pow(position.z - bossPos.z, 2)
                 );
                 
+                console.log(`Boss ${gameState.boss.name} at distance ${dist.toFixed(2)} (range: ${range})`);
+                
                 if (dist <= range) {
                     // Calculate damage with falloff
                     const falloff = 1 - (dist / range);
-                    const damageAmount = damage * falloff;
+                    const damageAmount = Math.max(1, damage * falloff); // Ensure at least 1 damage
                     
                     // Apply damage
+                    console.log(`Hitting boss ${gameState.boss.name} with ${damageAmount.toFixed(1)} damage`);
                     gameState.boss.takeDamage(damageAmount, damageType);
                     hitAny = true;
                 }
             }
+        }
+        
+        if (hitAny) {
+            console.log("Successfully hit targets with attack!");
+        } else {
+            console.log("No targets were in range of the attack");
         }
         
         return hitAny;

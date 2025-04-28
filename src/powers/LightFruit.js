@@ -27,9 +27,9 @@ export class LightFruit extends Fruit {
      */
     useBasicAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Light Beam', position, direction, (pos, dir) => {
-            // The cooldown is now managed by the FruitStore
-            // No need to set this.cooldowns directly
+        return this._useAttack('Basic Attack', position, direction, (pos, dir) => {
+            // Apply damage to enemies in a straight line
+            this.checkEnemiesInRange(pos, 6, fruitStore.getFruit(this.name).damageValues['Basic Attack'], 'light');
             return true;
         });
     }
@@ -39,9 +39,9 @@ export class LightFruit extends Fruit {
      */
     useSpecialAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Flash Step', position, direction, (pos, dir) => {
-            // The cooldown is now managed by the FruitStore
-            // No need to set this.cooldowns directly
+        return this._useAttack('Special Attack', position, direction, (pos, dir) => {
+            // Apply damage to enemies around the player
+            this.checkEnemiesInRange(pos, 5, fruitStore.getFruit(this.name).damageValues['Special Attack'], 'light');
             return true;
         });
     }
@@ -51,9 +51,9 @@ export class LightFruit extends Fruit {
      */
     useUltimateAttack(position, direction) {
         // Use the centralized attack logic
-        return this._useAttack('Solar Flare', position, direction, (pos, dir) => {
-            // The cooldown is now managed by the FruitStore
-            // No need to set this.cooldowns directly
+        return this._useAttack('Ultimate Attack', position, direction, (pos, dir) => {
+            // Apply damage to all enemies in a wide area
+            this.checkEnemiesInRange(pos, 15, fruitStore.getFruit(this.name).damageValues['Ultimate Attack'], 'light');
             return true;
         });
     }
