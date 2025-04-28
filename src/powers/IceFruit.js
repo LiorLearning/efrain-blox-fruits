@@ -50,20 +50,6 @@ export class IceFruit extends Fruit {
                 
                 // Rotate 90 degrees to align cone properly
                 iceSpike.rotateX(Math.PI / 2);
-                
-                // Add update handler for special effects
-                const originalUpdate = iceSpike.userData.update;
-                iceSpike.userData.update = function(deltaTime) {
-                    // Call the original update
-                    const result = originalUpdate(deltaTime);
-                    
-                    // Add ice trail effect
-                    if (Math.random() < 0.2) {
-                        this._createIceParticle(iceSpike.position.clone());
-                    }
-                    
-                    return result;
-                }.bind(this);
             }
             
             // Set cooldown
@@ -123,19 +109,6 @@ export class IceFruit extends Fruit {
                     // Update lifetime
                     this.userData.currentLifetime += deltaTime;
                     
-                    // Add ice particles occasionally for effect
-                    if (Math.random() < 0.1) {
-                        const edgeOffset = (Math.random() - 0.5) * wallWidth;
-                        const heightOffset = Math.random() * wallHeight;
-                        
-                        const particlePos = this.position.clone();
-                        particlePos.x += edgeOffset * Math.cos(this.rotation.y);
-                        particlePos.z += edgeOffset * Math.sin(this.rotation.y);
-                        particlePos.y = heightOffset;
-                        
-                        this.engine._createIceParticle(particlePos);
-                    }
-                    
                     // Fade out near end of lifetime
                     const remainingLife = this.userData.lifetime - this.userData.currentLifetime;
                     if (remainingLife < 1) {
@@ -153,9 +126,6 @@ export class IceFruit extends Fruit {
                     return true;
                 }.bind(wall)
             };
-            
-            // Store engine reference for particle effects
-            wall.engine = this;
             
             // Add to engine's effects to update
             if (!this.engine.effectsToUpdate) {
@@ -186,36 +156,6 @@ export class IceFruit extends Fruit {
                 type: 'blizzard'
             });
             
-            // Add custom effects and behavior
-            if (blizzard) {
-                const originalUpdate = blizzard.userData.update;
-                blizzard.userData.update = function(deltaTime) {
-                    // Call the original update
-                    const result = originalUpdate(deltaTime);
-                    
-                    // Create ice particles for visual effect
-                    for (let i = 0; i < 3; i++) {
-                        const angle = Math.random() * Math.PI * 2;
-                        const radius = Math.random() * blizzard.userData.radius * 0.9;
-                        const height = 1 + Math.random() * 3;
-                        
-                        const particlePos = new THREE.Vector3(
-                            blizzard.position.x + Math.cos(angle) * radius,
-                            blizzard.position.y + height,
-                            blizzard.position.z + Math.sin(angle) * radius
-                        );
-                        
-                        this._createIceParticle(particlePos);
-                    }
-                    
-                    // Check for enemies in range to apply slow effect
-                    this.checkEnemiesInRange(blizzard.position, blizzard.userData.radius, 
-                        this.power * 0.3 * deltaTime, 'ice');
-                    
-                    return result;
-                }.bind(this);
-            }
-            
             // Set cooldown
             this.cooldowns['Blizzard'] = 25; // 25 second cooldown
             
@@ -224,27 +164,10 @@ export class IceFruit extends Fruit {
     }
     
     /**
-     * Create an ice particle for effects
+     * Create an ice particle for effects (disabled)
      */
     _createIceParticle(position) {
-        // Use the centralized particle creation logic
-        return this.createParticle(position, {
-            geometry: new THREE.TetrahedronGeometry(0.15), // Ice crystal shape
-            color: 0xccffff,
-            opacity: 0.8,
-            lifetime: 0.8 + Math.random() * 0.7, // 0.8-1.5 seconds
-            randomRotation: true,
-            velocity: new THREE.Vector3(
-                (Math.random() - 0.5) * 0.2, // Small random x movement
-                -0.1 - Math.random() * 0.2,  // Slow downward movement
-                (Math.random() - 0.5) * 0.2  // Small random z movement
-            ),
-            spinRate: {
-                x: (Math.random() - 0.5) * 0.05,
-                y: (Math.random() - 0.5) * 0.05,
-                z: (Math.random() - 0.5) * 0.05
-            },
-            fadeStart: 0.7 // Start fading at 70% of lifetime
-        });
+        // Disabled to remove particle effects
+        return null;
     }
 }

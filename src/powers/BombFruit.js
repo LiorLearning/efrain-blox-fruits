@@ -39,22 +39,6 @@ export class BombFruit extends Fruit {
             });
             
             if (bomb) {
-                // Add fuse effect (a small red light on top)
-                const fuseGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-                const fuseMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xff0000, // Red
-                    transparent: true,
-                    opacity: 0.8
-                });
-                const fuse = new THREE.Mesh(fuseGeometry, fuseMaterial);
-                fuse.position.y = 0.3; // Place at top of bomb
-                bomb.add(fuse);
-                
-                // Add a light source to the fuse
-                const light = new THREE.PointLight(0xff0000, 0.5, 2);
-                light.position.copy(fuse.position);
-                bomb.add(light);
-                
                 // Add trajectory arc (bombs are affected by gravity)
                 const originalUpdate = bomb.userData.update;
                 bomb.userData.update = function(deltaTime) {
@@ -67,18 +51,9 @@ export class BombFruit extends Fruit {
                     // Check if hit ground
                     if (this.position.y <= 0.1) {
                         this.position.y = 0.1; // Keep slightly above ground
-                        this._createExplosion(this.position.clone(), this.userData.damage);
                         this.parent.remove(this);
                         return false;
                     }
-                    
-                    // Make bomb blink faster as it nears explosion
-                    const blinkRate = 5 + (this.userData.currentLifetime / this.userData.lifetime) * 15;
-                    fuse.material.opacity = 0.5 + 0.5 * Math.sin(blinkRate * this.userData.currentLifetime);
-                    
-                    // Spin the bomb as it flies
-                    this.rotation.x += 2 * deltaTime;
-                    this.rotation.z += 3 * deltaTime;
                     
                     return result;
                 }.bind(bomb);
@@ -200,8 +175,6 @@ export class BombFruit extends Fruit {
     useUltimateAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Mega Explosion', position, direction, (pos, dir) => {
-            // Create a large central explosion first
-            this._createExplosion(pos, this.power * 2, 7);
             
             // Create multiple smaller explosions in a circular pattern
             const explosionCount = 8;
@@ -215,11 +188,6 @@ export class BombFruit extends Fruit {
                     pos.y,
                     pos.z + Math.sin(angle) * radius
                 );
-                
-                // Delay explosions for wave effect
-                setTimeout(() => {
-                    this._createExplosion(expPos, this.power * 1.5, 5);
-                }, i * 200); // 200ms delay between explosions
             }
             
             // Set cooldown
@@ -233,81 +201,7 @@ export class BombFruit extends Fruit {
      * Create an explosion effect at the specified position
      */
     _createExplosion(position, damage, radius = 4) {
-        const scene = this.engine.renderer.scene;
-        if (!scene) return null;
-        
-        // Create explosion object
-        const explosionGroup = new THREE.Group();
-        explosionGroup.position.copy(position);
-        
-        // Create main explosion sphere
-        const explosionGeometry = new THREE.SphereGeometry(radius, 16, 16);
-        const explosionMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff5500, // Orange
-            transparent: true,
-            opacity: 0.8
-        });
-        const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
-        explosionGroup.add(explosion);
-        
-        // Add a light source
-        const light = new THREE.PointLight(0xff5500, 2, radius * 3);
-        explosionGroup.add(light);
-        
-        // Add data for update
-        explosionGroup.userData = {
-            type: 'explosion',
-            damage: damage,
-            radius: radius,
-            lifetime: 0.6, // Short lifetime
-            currentLifetime: 0,
-            hasDealtDamage: false,
-            source: 'player',
-            update: function(deltaTime) {
-                // Apply damage to nearby entities (once)
-                if (!this.userData.hasDealtDamage) {
-                    this.userData.hasDealtDamage = true;
-                    
-                    // Use the base class method to check for enemies in range
-                    this.engine.checkEnemiesInRange(this.position, this.userData.radius, this.userData.damage, 'bomb');
-                }
-                
-                // Expansion and fade effect
-                const lifeRatio = this.userData.currentLifetime / this.userData.lifetime;
-                const expandScale = 1 + lifeRatio * 0.5;
-                explosion.scale.set(expandScale, expandScale, expandScale);
-                
-                // Fade out
-                explosion.material.opacity = 0.8 * (1 - lifeRatio);
-                
-                // Fade out light
-                light.intensity = 2 * (1 - lifeRatio);
-                
-                // Update lifetime
-                this.userData.currentLifetime += deltaTime;
-                
-                // Destroy if lifetime is exceeded
-                if (this.userData.currentLifetime >= this.userData.lifetime) {
-                    scene.remove(this);
-                    return false;
-                }
-                
-                return true;
-            }.bind(explosionGroup)
-        };
-        
-        // Store reference to the engine for enemy detection
-        explosionGroup.engine = this;
-        
-        // Add to scene
-        scene.add(explosionGroup);
-        
-        // Keep track of all effects to update them
-        if (!this.engine.effectsToUpdate) {
-            this.engine.effectsToUpdate = [];
-        }
-        this.engine.effectsToUpdate.push(explosionGroup);
-        
-        return explosionGroup;
+        // Disabled to remove explosion effects
+        return null;
     }
 }

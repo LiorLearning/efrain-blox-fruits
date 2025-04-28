@@ -41,27 +41,6 @@ export class FlameFruit extends Fruit {
                 type: 'fireball'
             });
             
-            // Add special effects to the fireball
-            if (fireball) {
-                // Create a point light to make it glow
-                const light = new THREE.PointLight(0xff5500, 1, 5);
-                fireball.add(light);
-                
-                // Add update handler for special effects
-                const originalUpdate = fireball.userData.update;
-                fireball.userData.update = function(deltaTime) {
-                    // Call the original update
-                    const result = originalUpdate(deltaTime);
-                    
-                    // Add flame trail effect
-                    if (Math.random() < 0.3) {
-                        this._createFlameParticle(fireball.position.clone());
-                    }
-                    
-                    return result;
-                }.bind(this);
-            }
-            
             // Set cooldown
             this.cooldowns['Fireball'] = 1; // 1 second cooldown
             
@@ -140,48 +119,6 @@ export class FlameFruit extends Fruit {
                 type: 'inferno'
             });
             
-            // Add custom update logic for visual effects
-            if (inferno) {
-                const originalUpdate = inferno.userData.update;
-                inferno.userData.update = function(deltaTime) {
-                    // Call the original update
-                    const result = originalUpdate(deltaTime);
-                    
-                    // Add flame particles for visual effect
-                    if (Math.random() < 0.3) {
-                        const angle = Math.random() * Math.PI * 2;
-                        const radius = Math.random() * inferno.userData.radius * 0.8;
-                        const particlePos = new THREE.Vector3(
-                            inferno.position.x + Math.cos(angle) * radius,
-                            inferno.position.y + 0.2 + Math.random() * 1.5,
-                            inferno.position.z + Math.sin(angle) * radius
-                        );
-                        
-                        this._createFlameParticle(particlePos);
-                    }
-                    
-                    return result;
-                }.bind(this);
-                
-                // Check for enemies in range continuously
-                const damageInterval = setInterval(() => {
-                    if (inferno.parent) {
-                        this.checkEnemiesInRange(inferno.position, inferno.userData.radius, 
-                            this.power * 0.5 * deltaTime, 'flame');
-                    } else {
-                        // Clear interval if inferno is destroyed
-                        clearInterval(damageInterval);
-                    }
-                }, 500); // Check every 0.5 seconds
-                
-                // Clean up interval when effect is removed
-                const originalDispose = inferno.userData.dispose;
-                inferno.userData.dispose = function() {
-                    clearInterval(damageInterval);
-                    if (originalDispose) originalDispose();
-                };
-            }
-            
             // Set very long cooldown for ultimate
             this.cooldowns['Inferno'] = 30; // 30 seconds cooldown
             
@@ -190,22 +127,10 @@ export class FlameFruit extends Fruit {
     }
     
     /**
-     * Create a flame particle for effects
+     * Create a flame particle for effects (disabled)
      */
     _createFlameParticle(position) {
-        // Use the centralized particle creation logic
-        return this.createParticle(position, {
-            size: 0.2 + Math.random() * 0.1,
-            color: Math.random() > 0.5 ? 0xff9900 : 0xff5500, // Orange/red variation
-            lifetime: 0.3 + Math.random() * 0.3, // 0.3-0.6 seconds
-            opacity: 0.7,
-            velocity: new THREE.Vector3(
-                (Math.random() - 0.5) * 0.5, // Small random x movement
-                1 + Math.random(),           // Upward movement
-                (Math.random() - 0.5) * 0.5  // Small random z movement
-            ),
-            scale: (progress) => 1 - progress * 0.5, // Shrink slightly as it rises
-            fadeStart: 0.5 // Start fading halfway through lifetime
-        });
+        // Disabled to remove particle effects
+        return null;
     }
 }
