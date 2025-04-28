@@ -96,7 +96,7 @@ export class MenuState extends BaseState {
      * Create the 3D scene for the menu
      */
     createMenuScene() {
-        // Create a simple scene with sea and islands
+        // Use a simple empty scene with just the background image
         const scene = this.engine.renderer.scene;
         
         if (!scene) {
@@ -105,23 +105,26 @@ export class MenuState extends BaseState {
         }
         
         try {
-            // Add ocean plane
-            const oceanGeometry = new THREE.PlaneGeometry(1000, 1000);
-            const oceanMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x0077be,
-                metalness: 0.1,
-                roughness: 0.5
+            // Set background texture
+            const backgroundTexture = this.engine.resources.getTexture('background');
+            if (backgroundTexture) {
+                scene.background = backgroundTexture;
+            } else {
+                console.warn("Background texture not found, using default sky color");
+                scene.background = new THREE.Color(0x87CEEB); // Sky blue fallback
+            }
+            
+            // Create an invisible plane for click detection
+            const planeGeometry = new THREE.PlaneGeometry(100, 100);
+            const planeMaterial = new THREE.MeshBasicMaterial({ 
+                visible: false // Invisible click plane
             });
-            const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
-            ocean.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-            ocean.position.y = -0.5;
-            scene.add(ocean);
-            
-            // Create islands for each sea
-            this.createIslands(scene);
-            
-            // Add simple clouds
-            this.createClouds(scene);
+            const clickPlane = new THREE.Mesh(planeGeometry, planeMaterial);
+            clickPlane.rotation.x = -Math.PI / 2; // Make it horizontal
+            clickPlane.position.y = 0;
+            clickPlane.userData.isInteractive = true;
+            clickPlane.userData.islandId = 'sea0_island0'; // Default to first island
+            scene.add(clickPlane);
         } catch (error) {
             console.error("Error in createMenuScene:", error);
         }
@@ -131,100 +134,16 @@ export class MenuState extends BaseState {
      * Create islands for the world map
      */
     createIslands(scene) {
-        if (!scene) return;
-        
-        try {
-            const seas = this.engine.config.world.seas;
-            
-            // Create islands for each sea
-            seas.forEach((sea, seaIndex) => {
-                for (let i = 0; i < sea.islands; i++) {
-                    try {
-                        // Create a simple island
-                        const islandGeometry = new THREE.CylinderGeometry(
-                            2 + Math.random() * 0.5, // top radius
-                            2.5 + Math.random() * 0.5, // bottom radius
-                            1, // height
-                            12, // radial segments
-                            1, // height segments
-                            false // open ended
-                        );
-                        
-                        const islandMaterial = new THREE.MeshStandardMaterial({
-                            color: sea.unlocked ? 0x7cfc00 : 0x708090, // Green if unlocked, gray if locked
-                            metalness: 0.1,
-                            roughness: 0.8
-                        });
-                        
-                        const island = new THREE.Mesh(islandGeometry, islandMaterial);
-                        
-                        // Position the island based on sea and index
-                        const angle = (i / sea.islands) * Math.PI * 2;
-                        const radius = 15 + seaIndex * 12;
-                        island.position.x = Math.cos(angle) * radius;
-                        island.position.z = Math.sin(angle) * radius;
-                        island.position.y = 0; // At water level
-                        
-                        scene.add(island);
-                        
-                        // If this is the first island of the first sea, make it interactive
-                        if (seaIndex === 0 && i === 0) {
-                            island.userData.isInteractive = true;
-                            island.userData.islandId = `sea${seaIndex}_island${i}`;
-                            
-                            // Add a highlight to show it's selectable
-                            const highlightGeometry = new THREE.RingGeometry(3, 3.2, 32);
-                            const highlightMaterial = new THREE.MeshBasicMaterial({ 
-                                color: 0xffff00,
-                                side: THREE.DoubleSide
-                            });
-                            const highlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
-                            highlight.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-                            highlight.position.y = 0.6; // Slightly above the island
-                            island.add(highlight);
-                        }
-                    } catch (error) {
-                        console.error("Error creating island:", error);
-                    }
-                }
-            });
-        } catch (error) {
-            console.error("Error in createIslands:", error);
-        }
+        // This method is kept empty as we're now using just the background image
+        // but kept for compatibility with other code
     }
     
     /**
      * Create simple clouds for the menu scene
      */
     createClouds(scene) {
-        if (!scene) return;
-        
-        try {
-            for (let i = 0; i < 10; i++) {
-                const cloudGeometry = new THREE.SphereGeometry(2, 8, 8);
-                const cloudMaterial = new THREE.MeshStandardMaterial({
-                    color: 0xffffff,
-                    transparent: true,
-                    opacity: 0.7,
-                    roughness: 1.0
-                });
-                
-                const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
-                
-                // Random position
-                cloud.position.x = (Math.random() - 0.5) * 50;
-                cloud.position.y = 15 + Math.random() * 5;
-                cloud.position.z = (Math.random() - 0.5) * 50;
-                
-                // Random scale
-                const scale = 1 + Math.random() * 2;
-                cloud.scale.set(scale, 0.7, scale);
-                
-                scene.add(cloud);
-            }
-        } catch (error) {
-            console.error("Error in createClouds:", error);
-        }
+        // This method is kept empty as we're now using just the background image
+        // but kept for compatibility with other code
     }
     
     /**
@@ -240,12 +159,6 @@ export class MenuState extends BaseState {
         this.playBackgroundMusic();
         
         try {
-            // Set background texture
-            const backgroundTexture = this.engine.resources.getTexture('background');
-            if (backgroundTexture && this.engine.renderer.scene) {
-                this.engine.renderer.scene.background = backgroundTexture;
-            }
-            
             // Set camera position for menu view if available
             const camera = this.engine.renderer.camera;
             if (camera) {
@@ -262,7 +175,7 @@ export class MenuState extends BaseState {
                 }
             }
             
-            // Set up click handler for islands
+            // Set up click handler for interaction
             this.setupIslandSelection();
         } catch (error) {
             console.error("Error in MenuState.enter:", error);

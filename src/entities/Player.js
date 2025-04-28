@@ -408,11 +408,11 @@ export class Player extends Entity {
             this.object3D.position.z * this.object3D.position.z
         );
         
-        if (distanceFromCenter > 29) {
+        if (distanceFromCenter > 45) { // Increased from 29 to 45 for a larger playing area
             // Player is too close to edge, push back
             const angle = Math.atan2(this.object3D.position.x, this.object3D.position.z);
-            this.object3D.position.x = Math.sin(angle) * 29;
-            this.object3D.position.z = Math.cos(angle) * 29;
+            this.object3D.position.x = Math.sin(angle) * 45;
+            this.object3D.position.z = Math.cos(angle) * 45;
         }
     }
     

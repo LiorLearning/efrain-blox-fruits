@@ -138,95 +138,26 @@ export class GameplayState extends BaseState {
             scene.background = backgroundTexture;
         } else {
             console.warn("Background texture not found, using default sky color");
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue fallback
         }
         
-        // Create island ground
-        const groundGeometry = new THREE.CylinderGeometry(30, 30, 2, 32);
-        const groundMaterial = new THREE.MeshStandardMaterial({
-            color: 0x7cfc00, // Green
-            metalness: 0.1,
-            roughness: 0.8
+        // Create a simple flat ground for collision detection
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const groundMaterial = new THREE.MeshBasicMaterial({ 
+            visible: false // Invisible collision plane
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.position.y = -1; // Half below "sea level"
+        ground.rotation.x = -Math.PI / 2; // Make it horizontal
+        ground.position.y = -0.5; // Slightly below visual level
         scene.add(ground);
-        
-        // Create water around island
-        const waterGeometry = new THREE.RingGeometry(30, 100, 32);
-        const waterMaterial = new THREE.MeshStandardMaterial({
-            color: 0x0077be, // Blue
-            metalness: 0.1,
-            roughness: 0.5
-        });
-        const water = new THREE.Mesh(waterGeometry, waterMaterial);
-        water.rotation.x = -Math.PI / 2; // Flat
-        water.position.y = -0.5; // Water level
-        scene.add(water);
-        
-        // Create some basic environment elements
-        this.addEnvironmentElements(scene);
     }
     
     /**
      * Add environment elements to the scene
      */
     addEnvironmentElements(scene) {
-        // Add some trees
-        for (let i = 0; i < 15; i++) {
-            const treeGroup = new THREE.Group();
-            
-            // Tree trunk
-            const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.7, 3, 8);
-            const trunkMaterial = new THREE.MeshStandardMaterial({
-                color: 0x8B4513, // Brown
-                roughness: 0.8
-            });
-            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.y = 1.5; // Half height
-            treeGroup.add(trunk);
-            
-            // Tree leaves
-            const leavesGeometry = new THREE.ConeGeometry(2, 4, 8);
-            const leavesMaterial = new THREE.MeshStandardMaterial({
-                color: 0x2e8b57, // Forest green
-                roughness: 0.7
-            });
-            const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-            leaves.position.y = 5; // Above trunk
-            treeGroup.add(leaves);
-            
-            // Position around island
-            const angle = Math.random() * Math.PI * 2;
-            const radius = 15 + Math.random() * 10;
-            treeGroup.position.x = Math.cos(angle) * radius;
-            treeGroup.position.z = Math.sin(angle) * radius;
-            
-            scene.add(treeGroup);
-        }
-        
-        // Add some rocks
-        for (let i = 0; i < 10; i++) {
-            const rockGeometry = new THREE.DodecahedronGeometry(1 + Math.random() * 1.5, 0);
-            const rockMaterial = new THREE.MeshStandardMaterial({
-                color: 0x808080, // Gray
-                roughness: 0.9
-            });
-            const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-            
-            // Random position
-            const angle = Math.random() * Math.PI * 2;
-            const radius = 5 + Math.random() * 20;
-            rock.position.x = Math.cos(angle) * radius;
-            rock.position.z = Math.sin(angle) * radius;
-            rock.position.y = 0.5; // Half in ground
-            
-            // Random rotation
-            rock.rotation.x = Math.random() * Math.PI;
-            rock.rotation.y = Math.random() * Math.PI;
-            rock.rotation.z = Math.random() * Math.PI;
-            
-            scene.add(rock);
-        }
+        // No additional elements needed as we're using the background image
+        // This method is kept empty to maintain compatibility with other code
     }
     
     /**
@@ -992,7 +923,7 @@ export class GameplayState extends BaseState {
         }
         
         // Limit camera panning to island bounds
-        const maxOffset = 20;
+        const maxOffset = 40; // Increased from 20 to 40 for larger area
         this.cameraOffset.x = Math.max(-maxOffset, Math.min(maxOffset, this.cameraOffset.x));
         this.cameraOffset.z = Math.max(-maxOffset, Math.min(maxOffset, this.cameraOffset.z));
         
