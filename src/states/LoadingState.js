@@ -62,26 +62,26 @@ export class LoadingState extends BaseState {
         const resources = {
             textures: [
                 // Load background texture
-                { name: 'background', path: 'assets/models/background.png' },
+                { name: 'background', path: './assets/models/background.png' },
                 // Load player texture
-                { name: 'player', path: 'assets/models/entities/Player.png' },
+                { name: 'player', path: './assets/models/entities/Player.png' },
                 // Load villain texture
-                { name: 'villain', path: 'assets/models/entities/villian.png' },
+                { name: 'villain', path: './assets/models/entities/villian.png' },
                 // Load boss texture
-                { name: 'boss', path: 'assets/models/entities/boss.png' },
+                { name: 'boss', path: './assets/models/entities/boss.png' },
                 // Load all fruit textures
-                { name: 'flameFruit', path: 'assets/models/fruits/FlameFruit.png' },
-                { name: 'iceFruit', path: 'assets/models/fruits/IceFruit.png' },
-                { name: 'bombFruit', path: 'assets/models/fruits/BombFruit.png' },
-                { name: 'lightFruit', path: 'assets/models/fruits/LightFruit.png' },
-                { name: 'magmaFruit', path: 'assets/models/fruits/MagmaFruit.png' }
+                { name: 'flameFruit', path: './assets/models/fruits/FlameFruit.png' },
+                { name: 'iceFruit', path: './assets/models/fruits/IceFruit.png' },
+                { name: 'bombFruit', path: './assets/models/fruits/BombFruit.png' },
+                { name: 'lightFruit', path: './assets/models/fruits/LightFruit.png' },
+                { name: 'magmaFruit', path: './assets/models/fruits/MagmaFruit.png' }
             ],
             models: [],
             sounds: [
                 // Load background music
-                { name: 'bgMusic', path: 'assets/sounds/bg-music.mpeg' },
+                { name: 'bgMusic', path: './assets/sounds/bg-music.mpeg' },
                 // Load drop sound effect
-                { name: 'dropSound', path: 'assets/sounds/drop.mp3' }
+                { name: 'dropSound', path: './assets/sounds/drop.mp3' }
             ]
         };
         
