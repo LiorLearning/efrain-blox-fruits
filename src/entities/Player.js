@@ -795,11 +795,11 @@ export class Player extends Entity {
         
         const playerPos = this.getPosition();
         if (!playerPos) return;
-        
+
         // Check proximity to regular enemies
-        if (gameState.enemies) {
+        if (gameState.enemies && Array.isArray(gameState.enemies)) {
             gameState.enemies.forEach(enemy => {
-                if (!enemy.isActive) return;
+                if (!enemy) return;
                 
                 const enemyPos = enemy.getPosition();
                 if (!enemyPos) return;
@@ -811,41 +811,44 @@ export class Player extends Entity {
                 
                 // Check when player gets close to a villain
                 if (distance <= 5) {
-                    console.log(`PROXIMITY ALERT: Near villain ${enemy.name} at distance ${distance.toFixed(2)}`);
-                    
                     // Update enemy's awareness of player
-                    enemy.onPlayerNearby(distance);
+                    if (typeof enemy.onPlayerNearby === 'function') {
+                        enemy.onPlayerNearby(distance);
+                    }
                     
                     // Show visual indicator of enemy range
-                    enemy._updateRangeIndicator();
+                    if (typeof enemy._updateRangeIndicator === 'function') {
+                        enemy._updateRangeIndicator();
+                    }
                 }
             });
         }
         
-        // Check proximity to mini bosses
-        if (gameState.bosses) {
-            gameState.bosses.forEach(boss => {
-                if (!boss.isActive) return;
-                
+        // Check proximity to mini boss (changed from bosses array to single boss)
+        if (gameState.boss) {
+            const boss = gameState.boss;
+            if (boss && boss.isActive) {
                 const bossPos = boss.getPosition();
-                if (!bossPos) return;
-                
-                const distance = Math.sqrt(
-                    Math.pow(playerPos.x - bossPos.x, 2) + 
-                    Math.pow(playerPos.z - bossPos.z, 2)
-                );
-                
-                // Check when player gets close to a boss
-                if (distance <= 8) {
-                    console.log(`PROXIMITY ALERT: Near boss ${boss.name} at distance ${distance.toFixed(2)}`);
+                if (bossPos) {
+                    const distance = Math.sqrt(
+                        Math.pow(playerPos.x - bossPos.x, 2) + 
+                        Math.pow(playerPos.z - bossPos.z, 2)
+                    );
                     
-                    // Update boss's awareness of player
-                    boss.onPlayerNearby(distance);
-                    
-                    // Show visual indicator of boss range
-                    boss._updateRangeIndicator();
+                    // Check when player gets close to a boss
+                    if (distance <= 8) {
+                        // Update boss's awareness of player
+                        if (typeof boss.onPlayerNearby === 'function') {
+                            boss.onPlayerNearby(distance);
+                        }
+                        
+                        // Show visual indicator of boss range
+                        if (typeof boss._updateRangeIndicator === 'function') {
+                            boss._updateRangeIndicator();
+                        }
+                    }
                 }
-            });
+            }
         }
     }
     

@@ -39,8 +39,9 @@ export class FruitSelectState extends BaseState {
     enter(params = {}) {
         super.enter(params);
         
-        // Reset selected fruits
-        this.selectedFruits = [];
+        // Pre-select the first 5 fruits by default
+        const fruits = this.engine.config.fruits;
+        this.selectedFruits = fruits.slice(0, this.maxSelections);
         
         // Set background texture
         const backgroundTexture = this.engine.resources.getTexture('background');
@@ -69,9 +70,9 @@ export class FruitSelectState extends BaseState {
         this.fruitSelectUI.innerHTML = `
             <div class="fruit-select-header">Choose Your Fruits</div>
             <div class="fruit-select-subtitle">Select 5 fruits to begin your adventure</div>
-            <div class="fruit-selection-count">Selected: 0/5</div>
+            <div class="fruit-selection-count">Selected: ${this.selectedFruits.length}/${this.maxSelections}</div>
             <div class="fruit-grid interactive-element"></div>
-            <button class="start-button" disabled>Start Adventure</button>
+            <button class="start-button" ${this.selectedFruits.length === this.maxSelections ? '' : 'disabled'}>Start Adventure</button>
         `;
         
         // Add some basic styling
@@ -194,6 +195,11 @@ export class FruitSelectState extends BaseState {
             const fruitItem = document.createElement('div');
             fruitItem.className = 'fruit-item interactive-element';
             fruitItem.dataset.fruitIndex = index;
+            
+            // Mark as selected if in the selectedFruits array
+            if (this.selectedFruits.some(f => f.name === fruit.name)) {
+                fruitItem.classList.add('selected');
+            }
             
             fruitItem.innerHTML = `
                 <div class="fruit-icon">
