@@ -3,6 +3,10 @@
  */
 import { BaseState } from './BaseState.js';
 
+// Direct path to resources without CORS proxy
+// const BASE_PATH = 'https://mathkraft-games.s3.us-east-1.amazonaws.com/efrain/blox-fruits';
+const BASE_PATH = './assets';
+
 export class LoadingState extends BaseState {
     constructor(engine) {
         super(engine);
@@ -62,26 +66,26 @@ export class LoadingState extends BaseState {
         const resources = {
             textures: [
                 // Load background texture
-                { name: 'background', path: 'assets/models/background.png' },
+                { name: 'background', path: `${BASE_PATH}/models/background.png` },
                 // Load player texture
-                { name: 'player', path: 'assets/models/entities/Player.png' },
+                { name: 'player', path: `${BASE_PATH}/models/entities/Player.png` },
                 // Load villain texture
-                { name: 'villain', path: 'assets/models/entities/villian.png' },
+                { name: 'villain', path: `${BASE_PATH}/models/entities/villian.png` },
                 // Load boss texture
-                { name: 'boss', path: 'assets/models/entities/boss.png' },
+                { name: 'boss', path: `${BASE_PATH}/models/entities/boss.png` },
                 // Load all fruit textures
-                { name: 'flameFruit', path: 'assets/models/fruits/FlameFruit.png' },
-                { name: 'iceFruit', path: 'assets/models/fruits/IceFruit.png' },
-                { name: 'bombFruit', path: 'assets/models/fruits/BombFruit.png' },
-                { name: 'lightFruit', path: 'assets/models/fruits/LightFruit.png' },
-                { name: 'magmaFruit', path: 'assets/models/fruits/MagmaFruit.png' }
+                { name: 'flameFruit', path: `${BASE_PATH}/models/fruits/FlameFruit.png` },
+                { name: 'iceFruit', path: `${BASE_PATH}/models/fruits/IceFruit.png` },
+                { name: 'bombFruit', path: `${BASE_PATH}/models/fruits/BombFruit.png` },
+                { name: 'lightFruit', path: `${BASE_PATH}/models/fruits/LightFruit.png` },
+                { name: 'magmaFruit', path: `${BASE_PATH}/models/fruits/MagmaFruit.png` }
             ],
             models: [],
             sounds: [
                 // Load background music
-                { name: 'bgMusic', path: 'assets/sounds/bg-music.mpeg' },
+                { name: 'bgMusic', path: `${BASE_PATH}/sounds/bg-music.mpeg` },
                 // Load drop sound effect
-                { name: 'dropSound', path: 'assets/sounds/drop.mp3' }
+                { name: 'dropSound', path: `${BASE_PATH}/sounds/drop.mp3` }
             ]
         };
         
