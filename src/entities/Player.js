@@ -49,7 +49,7 @@ export class Player extends Entity {
         
         // Damage timer system
         this.damageTimer = 0;
-        this.damageThreshold = 5; // Seconds in enemy range before taking damage
+        this.damageThreshold = 2; // Seconds in enemy range before taking damage
         this.inEnemyRange = false;
         
         // Initialize player
@@ -316,6 +316,66 @@ export class Player extends Entity {
         // Update damage timer if in enemy range
         if (this.inEnemyRange) {
             this.damageTimer += deltaTime;
+            
+            // Apply automatic damage if timer exceeds threshold
+            if (this.damageTimer >= this.damageThreshold) {
+                console.log(`Player has been in danger zone for ${this.damageThreshold}s - applying automatic damage`);
+                
+                // Get the current game state
+                const gameState = this.engine.stateManager.getCurrentState();
+                let damageAmount = 10; // Default damage amount
+                
+                // Try to get the enemy/boss that's causing this damage
+                if (gameState && gameState.enemies) {
+                    // Find the closest enemy/boss in range to determine damage amount
+                    const playerPos = this.getPosition();
+                    let closestEnemy = null;
+                    let closestDistance = Infinity;
+                    
+                    // Check regular enemies
+                    gameState.enemies.forEach(enemy => {
+                        if (!enemy || !enemy.isActive) return;
+                        
+                        const enemyPos = enemy.getPosition();
+                        if (!enemyPos) return;
+                        
+                        const distance = Math.sqrt(
+                            Math.pow(playerPos.x - enemyPos.x, 2) + 
+                            Math.pow(playerPos.z - enemyPos.z, 2)
+                        );
+                        
+                        if (distance <= enemy.attackRange && distance < closestDistance) {
+                            closestEnemy = enemy;
+                            closestDistance = distance;
+                        }
+                    });
+                    
+                    // Check miniboss (with higher priority)
+                    if (gameState.boss && gameState.boss.isActive) {
+                        const bossPos = gameState.boss.getPosition();
+                        if (bossPos) {
+                            const distance = Math.sqrt(
+                                Math.pow(playerPos.x - bossPos.x, 2) + 
+                                Math.pow(playerPos.z - bossPos.z, 2)
+                            );
+                            
+                            if (distance <= gameState.boss.attackRange && 
+                                (distance < closestDistance || Math.random() < 0.7)) { // Boss has priority
+                                closestEnemy = gameState.boss;
+                                closestDistance = distance;
+                            }
+                        }
+                    }
+                    
+                    // Use the attack power of the closest enemy if found
+                    if (closestEnemy) {
+                        damageAmount = closestEnemy.attackPower * 0.7; // Reduced damage for passive effect
+                    }
+                }
+                
+                // Apply the damage
+                this.takeDamage(damageAmount);
+            }
         } else {
             // Reset damage timer if not in enemy range
             this.damageTimer = 0;
