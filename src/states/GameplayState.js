@@ -745,6 +745,55 @@ export class GameplayState extends BaseState {
     }
     
     /**
+     * Check for direct hits on enemies from an attack
+     * Only hits the closest enemy within range
+     * @param {THREE.Vector3} attackPosition - Starting position of the attack
+     * @param {number} attackRange - Maximum distance the attack can reach
+     * @param {number} damage - Amount of damage to deal
+     * @param {string} attackType - Type of attack (for special effects)
+     * @returns {boolean} - Whether any enemy was hit
+     */
+    checkDirectAttackHits(attackPosition, attackRange, damage, attackType) {
+        if (!this.enemies || !Array.isArray(this.enemies)) {
+            return false;
+        }
+        
+        // Combine enemies and boss in a single array for processing
+        const targets = [...this.enemies];
+        if (this.boss && this.boss.isActive) {
+            targets.push(this.boss);
+        }
+        
+        // Find closest enemy within attack range
+        let closestEnemy = null;
+        let closestDistance = Infinity;
+        
+        for (const enemy of targets) {
+            if (!enemy || !enemy.isActive) continue;
+            
+            const enemyPosition = enemy.getPosition();
+            if (!enemyPosition) continue;
+            
+            // Calculate distance to enemy
+            const distance = attackPosition.distanceTo(enemyPosition);
+            
+            // Check if within range and closer than current closest
+            if (distance <= attackRange && distance < closestDistance) {
+                closestEnemy = enemy;
+                closestDistance = distance;
+            }
+        }
+        
+        // If we found a closest enemy in range, damage it
+        if (closestEnemy) {
+            closestEnemy.takeDamage(damage);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
      * Exit gameplay state
      */
     exit() {

@@ -38,6 +38,7 @@ export class FlameFruit extends Fruit {
             // });
             
             // Check for enemies in range (will be done during projectile update)
+            this.checkEnemiesInRange(pos, 3, fruitStore.getFruit(this.name).damageValues['Basic Attack'], 'flame');
             return true;
         });
     }

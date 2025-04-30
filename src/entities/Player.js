@@ -450,8 +450,6 @@ export class Player extends Entity {
             return;
         }
         
-        console.log("BASIC ATTACK TRIGGERED!");
-        
         // Get active fruit
         const fruit = this.getActiveFruit();
         if (!fruit) {
@@ -489,43 +487,29 @@ export class Player extends Entity {
             position.z + direction.z * 1.5
         );
         
-        // Set the attack range to be the same as enemy range (8)
+        // Set the attack range
         const attackRange = 8; 
-        
-        // Get all enemies from game state
-        const gameState = this.engine.stateManager.getCurrentState();
-        const enemies = [];
-        if (gameState.enemies && Array.isArray(gameState.enemies)) {
-            enemies.push(...gameState.enemies.filter(enemy => enemy && enemy.isActive));
-        }
-        if (gameState.boss && gameState.boss.isActive) {
-            enemies.push(gameState.boss);
-        }
         
         // Set cooldown
         this.attackCooldown = this.attackCooldownTime;
-        
-        // Log fruit uses before attack
-        console.log(`BEFORE ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
         
         // Use fruit's basic attack
         const attackResult = fruit.useBasicAttack(attackStartPosition, direction);
         
         // Check if attack was successful
         if (attackResult) {
-            // Always check for direct hits on enemies regardless of distance
+            // Get game state and check for direct hits on the closest enemy
+            const gameState = this.engine.stateManager.getCurrentState();
             if (gameState && gameState.checkDirectAttackHits) {
-                const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
+                gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power, fruit.type);
             }
             
             // Create visual feedback for attack
             this._createAttackEffect(attackStartPosition, direction, fruit.type);
         }
         
-        // Force immediate UI update to reflect updated uses count
-        setTimeout(() => {
-            this._updateFruitUI();
-        }, 0);
+        // Update UI to reflect updated uses count
+        this._updateFruitUI();
         
         return attackResult;
     }
@@ -539,8 +523,6 @@ export class Player extends Entity {
             console.log(`Attack on cooldown: ${this.attackCooldown.toFixed(2)}s remaining`);
             return;
         }
-        
-        console.log("SPECIAL ATTACK TRIGGERED!");
         
         // Get active fruit
         const fruit = this.getActiveFruit();
@@ -588,34 +570,22 @@ export class Player extends Entity {
         // Special attack has longer range than basic attack
         const attackRange = 12; 
         
-        // Get all enemies from game state
-        const gameState = this.engine.stateManager.getCurrentState();
-        const enemies = [];
-        if (gameState.enemies && Array.isArray(gameState.enemies)) {
-            enemies.push(...gameState.enemies.filter(enemy => enemy && enemy.isActive));
-        }
-        if (gameState.boss && gameState.boss.isActive) {
-            enemies.push(gameState.boss);
-        }
-        
         // Set cooldown
         this.attackCooldown = this.attackCooldownTime;
-        
-        // Log fruit uses before attack
-        console.log(`BEFORE SPECIAL ATTACK - Fruit: ${fruit.name}, Uses: ${fruit.usesRemaining}`);
         
         // Use fruit's special attack
         const attackResult = fruit.useSpecialAttack(attackStartPosition, direction);
         
         // Check if attack was successful
         if (attackResult) {
-            // Always check for direct hits on enemies regardless of distance
+            // Get game state and check for direct hits on the closest enemy
+            const gameState = this.engine.stateManager.getCurrentState();
             if (gameState && gameState.checkDirectAttackHits) {
-                const hitAny = gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
+                gameState.checkDirectAttackHits(attackStartPosition, attackRange, fruit.power * 1.5, fruit.type);
             }
             
             // Create visual feedback for special attack
-            // this._createSpecialAttackEffect(attackStartPosition, direction, fruit.type);
+            this._createSpecialAttackEffect(attackStartPosition, direction, fruit.type);
         }
         
         // Update UI to reflect updated uses count

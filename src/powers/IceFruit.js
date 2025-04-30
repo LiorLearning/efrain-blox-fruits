@@ -43,7 +43,7 @@ export class IceFruit extends Fruit {
         // Use the centralized attack logic
         return this._useAttack('Special Attack', position, direction, (pos, dir) => {
             // Apply damage to enemies in range
-            this.checkEnemiesInRange(wallPos, 4, fruitStore.getFruit(this.name).damageValues['Special Attack'], 'ice');
+            this.checkEnemiesInRange(pos, 4, fruitStore.getFruit(this.name).damageValues['Special Attack'], 'ice');
             
             return true;
         });
