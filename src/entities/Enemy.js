@@ -292,6 +292,32 @@ export class Enemy extends Entity {
         const wasInRange = this.playerInRange;
         this.playerInRange = (distance <= this.attackRange);
         
+        // Update proximity timer if player is in range
+        if (this.playerInRange) {
+            // Don't increase timer if player is solving math
+            if (!player.mathChallengeActive) {
+                this.playerProximityTimer += 1/60; // Approximately one frame at 60fps
+            }
+            
+            // Change to attack state if close enough and timer exceeded
+            if (this.playerProximityTimer >= this.attackDelay && this.currentState !== 'attack') {
+                this.currentState = 'attack';
+            }
+        } else {
+            // Reset timer if player leaves range
+            this.playerProximityTimer = 0;
+            
+            // Change state back to chase if currently attacking
+            if (this.currentState === 'attack') {
+                this.currentState = 'chase';
+            }
+        }
+        
+        // If player is nearby but not in range, chase them
+        if (!this.playerInRange && distance < 10 && this.currentState !== 'chase') {
+            this.currentState = 'chase';
+        }
+        
         // Log when player enters/exits range
         if (this.playerInRange && !wasInRange) {
             console.log(`Player entered ${this.name}'s attack range`);
@@ -373,27 +399,153 @@ export class Enemy extends Entity {
      */
     _updateIdle(deltaTime) {
         // In idle state, the enemy just stands still
-        // Check for player nearby to transition to chase
+        // Randomly transition to patrol
+        if (Math.random() < 0.01) {
+            this.currentState = 'patrol';
+            // Set a random patrol target within range
+            this._setRandomPatrolTarget();
+        }
+    }
+    
+    /**
+     * Set a random patrol target within the patrol radius
+     */
+    _setRandomPatrolTarget() {
+        // Get current position
+        const pos = this.getPosition();
+        if (!pos) return;
+        
+        // Generate random angle and distance within patrol radius
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * this.patrolRadius;
+        
+        // Calculate new target position
+        const targetX = pos.x + Math.cos(angle) * distance;
+        const targetZ = pos.z + Math.sin(angle) * distance;
+        
+        // Store as patrol target
+        this.patrolTarget = { x: targetX, z: targetZ };
     }
     
     /**
      * Update patrol behavior
      */
     _updatePatrol(deltaTime) {
-        // Move along patrol path
+        // Check if player is solving math problem
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (gameState && gameState.player && gameState.player.mathChallengeActive) {
+            return; // Pause movement if player is solving math
+        }
+        
+        // If no patrol target, set one
+        if (!this.patrolTarget) {
+            this._setRandomPatrolTarget();
+            return;
+        }
+        
+        // Get current position
+        const pos = this.getPosition();
+        if (!pos) return;
+        
+        // Calculate direction to patrol target
+        const dirX = this.patrolTarget.x - pos.x;
+        const dirZ = this.patrolTarget.z - pos.z;
+        
+        // Calculate distance to target
+        const distanceToTarget = Math.sqrt(dirX * dirX + dirZ * dirZ);
+        
+        // If we've reached the target, set a new one
+        if (distanceToTarget < 0.5) {
+            this._setRandomPatrolTarget();
+            
+            // Sometimes transition back to idle
+            if (Math.random() < 0.3) {
+                this.currentState = 'idle';
+            }
+            return;
+        }
+        
+        // Normalize direction and move
+        const normalizedDirX = dirX / distanceToTarget;
+        const normalizedDirZ = dirZ / distanceToTarget;
+        
+        // Move toward target at patrol speed
+        const moveSpeed = this.patrolSpeed * deltaTime;
+        this.object3D.position.x += normalizedDirX * moveSpeed;
+        this.object3D.position.z += normalizedDirZ * moveSpeed;
+        
+        // Rotate to face movement direction
+        const angle = Math.atan2(normalizedDirX, normalizedDirZ);
+        this.object3D.rotation.y = angle;
     }
     
     /**
      * Update chase behavior
      */
     _updateChase(deltaTime) {
-        // Chase the player
+        // Check if player is solving math problem
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (gameState && gameState.player && gameState.player.mathChallengeActive) {
+            return; // Pause movement if player is solving math
+        }
+        
+        // Get player
+        if (!gameState || !gameState.player) {
+            // No player to chase, go back to patrol
+            this.currentState = 'patrol';
+            return;
+        }
+        
+        const playerPos = gameState.player.getPosition();
+        const enemyPos = this.getPosition();
+        
+        if (!playerPos || !enemyPos) {
+            return;
+        }
+        
+        // Calculate direction to player
+        const dirX = playerPos.x - enemyPos.x;
+        const dirZ = playerPos.z - enemyPos.z;
+        
+        // Calculate distance to player
+        const distanceToPlayer = Math.sqrt(dirX * dirX + dirZ * dirZ);
+        
+        // If player is in attack range, switch to attack
+        if (distanceToPlayer <= this.attackRange) {
+            this.currentState = 'attack';
+            return;
+        }
+        
+        // If player is too far away, go back to patrol
+        if (distanceToPlayer > 15) {
+            this.currentState = 'patrol';
+            return;
+        }
+        
+        // Normalize direction and move
+        const normalizedDirX = dirX / distanceToPlayer;
+        const normalizedDirZ = dirZ / distanceToPlayer;
+        
+        // Move toward player at chase speed
+        const moveSpeed = this.speed * deltaTime;
+        this.object3D.position.x += normalizedDirX * moveSpeed;
+        this.object3D.position.z += normalizedDirZ * moveSpeed;
+        
+        // Rotate to face movement direction
+        const angle = Math.atan2(normalizedDirX, normalizedDirZ);
+        this.object3D.rotation.y = angle;
     }
     
     /**
      * Update attack behavior
      */
     _updateAttack(deltaTime) {
+        // Check if player is solving math problem
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (gameState && gameState.player && gameState.player.mathChallengeActive) {
+            return; // Pause attacking if player is solving math
+        }
+        
         // If player is no longer in range (this is now checked in _checkPlayerProximity)
         if (!this.playerInRange) {
             this.currentState = 'chase';
