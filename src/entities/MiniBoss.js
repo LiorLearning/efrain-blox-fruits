@@ -774,11 +774,132 @@ export class MiniBoss extends Entity {
         this.isActive = false;
         
         // Play death animation or effect
+        this._playBossDeathEffect();
         
         // Remove after a delay
         setTimeout(() => {
             this.destroy();
+            
+            // Notify the GameplayState that the boss has been defeated
+            const gameState = this.engine.stateManager.getCurrentState();
+            if (gameState && typeof gameState.onBossDefeated === 'function') {
+                gameState.onBossDefeated();
+            }
         }, 2000); // Longer delay for boss death animation
+    }
+    
+    /**
+     * Play dramatic boss death effect
+     */
+    _playBossDeathEffect() {
+        // Boss death explosion effect
+        const explosionRadius = 3;
+        const explosionParticles = 30;
+        const explosionDuration = 1500; // ms
+        
+        // Create explosion particles
+        const particles = [];
+        const colors = [0xff0000, 0xff5500, 0xffaa00, 0xffff00]; // Fire colors
+        
+        for (let i = 0; i < explosionParticles; i++) {
+            // Create particle
+            const geometry = new THREE.SphereGeometry(0.2 + Math.random() * 0.3, 8, 8);
+            const colorIndex = Math.floor(Math.random() * colors.length);
+            const material = new THREE.MeshBasicMaterial({
+                color: colors[colorIndex],
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const particle = new THREE.Mesh(geometry, material);
+            
+            // Random position around boss
+            const bossPos = this.getPosition();
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 0.5;
+            
+            particle.position.set(
+                bossPos.x + Math.cos(angle) * radius,
+                bossPos.y + 1 + Math.random() * 2,
+                bossPos.z + Math.sin(angle) * radius
+            );
+            
+            // Random velocity
+            const velocity = {
+                x: (Math.random() - 0.5) * 5,
+                y: Math.random() * 5,
+                z: (Math.random() - 0.5) * 5
+            };
+            
+            // Add particle to scene
+            this.engine.renderer.scene.add(particle);
+            particles.push({ mesh: particle, velocity });
+        }
+        
+        // Make boss model fade out
+        this.object3D.traverse((object) => {
+            if (object.material) {
+                if (Array.isArray(object.material)) {
+                    object.material.forEach(mat => {
+                        mat.transparent = true;
+                    });
+                } else {
+                    object.material.transparent = true;
+                }
+            }
+        });
+        
+        // Animate explosion
+        const startTime = Date.now();
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / explosionDuration, 1);
+            
+            // Update particle positions
+            particles.forEach(particle => {
+                particle.mesh.position.x += particle.velocity.x * 0.02;
+                particle.mesh.position.y += particle.velocity.y * 0.02;
+                particle.mesh.position.z += particle.velocity.z * 0.02;
+                
+                // Reduce opacity over time
+                if (particle.mesh.material) {
+                    particle.mesh.material.opacity = 0.8 * (1 - progress);
+                    
+                    // Also scale the particle up a bit
+                    const scale = 1 + progress;
+                    particle.mesh.scale.set(scale, scale, scale);
+                }
+            });
+            
+            // Fade out boss model
+            this.object3D.traverse((object) => {
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(mat => {
+                            mat.opacity = 1 - progress;
+                        });
+                    } else {
+                        object.material.opacity = 1 - progress;
+                    }
+                }
+            });
+            
+            // Continue animation until complete
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Clean up particles
+                particles.forEach(particle => {
+                    if (particle.mesh.geometry) particle.mesh.geometry.dispose();
+                    if (particle.mesh.material) particle.mesh.material.dispose();
+                    this.engine.renderer.scene.remove(particle.mesh);
+                });
+            }
+        };
+        
+        // Start animation
+        animate();
     }
     
     /**

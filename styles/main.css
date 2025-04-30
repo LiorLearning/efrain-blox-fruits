@@ -169,3 +169,100 @@ body, html {
 .sound-toggle:not(.muted) i:before {
     content: "\f028"; /* Font Awesome sound icon */
 }
+
+/* Game Over and Victory Screens */
+.game-over-screen,
+.victory-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.game-over-content {
+    background: linear-gradient(to bottom, #500, #300);
+    border: 2px solid #700;
+    border-radius: 15px;
+    padding: 30px;
+    width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    color: white;
+    animation: slideIn 0.5s ease-out;
+}
+
+.victory-content {
+    background: linear-gradient(to bottom, #005, #003);
+    border: 2px solid #007;
+    border-radius: 15px;
+    padding: 30px;
+    width: 500px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    color: white;
+    animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.game-over-content h2,
+.victory-content h2 {
+    font-size: 36px;
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.game-over-content h2 {
+    color: #ff3333;
+}
+
+.victory-content h2 {
+    color: #33ccff;
+}
+
+.game-over-content p,
+.victory-content p {
+    font-size: 18px;
+    margin-bottom: 25px;
+}
+
+.victory-content p {
+    font-size: 18px;
+    margin-bottom: 25px;
+}
+
+#play-again-button {
+    padding: 15px 30px;
+    font-size: 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    background-color: #00cc66;
+    color: white;
+    margin-top: 15px;
+    min-width: 180px;
+}
+
+#play-again-button:hover {
+    background-color: #00dd77;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0,0,0,0.4);
+}

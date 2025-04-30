@@ -26,6 +26,9 @@ export class GameplayState extends BaseState {
         
         // Store currently selected fruit index
         this.selectedFruitIndex = 0;
+        
+        // Boss creation flag
+        this.bossCreated = false;
     }
     
     /**
@@ -233,6 +236,7 @@ export class GameplayState extends BaseState {
                     <div class="health-fill" style="width: 100%;"></div>
                 </div>
             </div>
+            <div class="game-message" id="game-message"></div>
             <div class="fruit-powers">
                 <div class="fruit-power-title">Fruit Powers</div>
                 <div class="fruit-power-list"></div>
@@ -404,10 +408,33 @@ export class GameplayState extends BaseState {
             .controls-info p {
                 margin: 5px 0;
             }
+            
+            .game-message {
+                position: absolute;
+                top: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(0, 0, 0, 0.7);
+                color: #ff0;
+                font-size: 24px;
+                font-weight: bold;
+                padding: 15px 30px;
+                border-radius: 8px;
+                text-align: center;
+                z-index: 100;
+                display: none;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+                border: 2px solid #ff0;
+            }
         `;
         
         this.uiContainer.appendChild(style);
         this.uiContainer.appendChild(this.gameplayUI);
+        
+        // Store reference to message element
+        this.messageElement = document.getElementById('game-message');
         
         // Add selected fruits to UI
         this.populateFruitUI();
@@ -630,6 +657,18 @@ export class GameplayState extends BaseState {
             this.enemies.push(enemy);
         }
         
+        // Initialize boss but don't create it yet - will spawn after all enemies are defeated
+        this.bossCreated = false;
+    }
+
+    /**
+     * Create the boss when all enemies are defeated
+     */
+    createBoss() {
+        if (this.boss) {
+            this.boss.destroy();
+        }
+        
         // Create a boss at the far end of the island, but not too far
         this.boss = new MiniBoss(this.engine, {
             name: 'Island Boss',
@@ -643,6 +682,24 @@ export class GameplayState extends BaseState {
         
         // Position the boss closer to the player
         this.boss.setPosition(0, 0, -18);
+        
+        // Mark boss as created
+        this.bossCreated = true;
+        
+        console.log("All enemies defeated! The MiniBoss has appeared!");
+        
+        // Display a message to the player
+        if (this.messageElement) {
+            this.messageElement.textContent = "The Island Boss has appeared!";
+            this.messageElement.style.display = "block";
+            
+            // Hide the message after 3 seconds
+            setTimeout(() => {
+                if (this.messageElement) {
+                    this.messageElement.style.display = "none";
+                }
+            }, 3000);
+        }
     }
 
     /**
@@ -656,10 +713,24 @@ export class GameplayState extends BaseState {
             this.player.update(deltaTime);
         }
         
-        // Update enemies
-        this.enemies.forEach(enemy => {
-            if (enemy) enemy.update(deltaTime);
-        });
+        // Update enemies and remove dead ones safely
+        // We need to iterate backwards to safely remove elements
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const enemy = this.enemies[i];
+            if (enemy) {
+                if (enemy.isActive) {
+                    enemy.update(deltaTime);
+                } else {
+                    // Remove dead enemies from the array
+                    this.enemies.splice(i, 1);
+                }
+            }
+        }
+        
+        // Check if all enemies are defeated and boss should spawn
+        if (!this.bossCreated && this.enemies.length === 0) {
+            this.createBoss();
+        }
         
         // Update boss if exists
         if (this.boss) {
@@ -839,138 +910,73 @@ export class GameplayState extends BaseState {
     }
 
     /**
-     * Handle player death (game over)
+     * Handle player death
      */
     onPlayerDeath() {
-        console.log("Game Over!");
-        
-        // Create game over popup
-        const gameOverPopup = document.createElement('div');
-        gameOverPopup.className = 'game-over-popup';
-        
-        gameOverPopup.innerHTML = `
-            <div class="game-over-container">
-                <h2>GAME OVER</h2>
+        // Create a game over screen
+        const gameOverScreen = document.createElement('div');
+        gameOverScreen.className = 'game-over-screen';
+        gameOverScreen.innerHTML = `
+            <div class="game-over-content">
+                <h2>Game Over</h2>
                 <p>You were defeated!</p>
-                <button class="restart-button">Try Again</button>
-                <button class="menu-button">Main Menu</button>
+                <button id="restart-button">Try Again</button>
             </div>
         `;
         
-        // Add styles for game over popup
-        const style = document.createElement('style');
-        style.textContent = `
-            .game-over-popup {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                background-color: rgba(0, 0, 0, 0.7);
-                z-index: 1000;
-                pointer-events: auto;
-                animation: fadeIn 0.3s ease-out;
-            }
+        document.body.appendChild(gameOverScreen);
+        
+        // Add event listener to restart button
+        document.getElementById('restart-button').addEventListener('click', () => {
+            // Remove game over screen
+            document.body.removeChild(gameOverScreen);
             
-            @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
+            // Restart the game
+            this.engine.stateManager.switchState('gameplay');
+        });
+    }
+    
+    /**
+     * Handle boss defeat and victory
+     */
+    onBossDefeated() {
+        // Stop background music
+        this.stopBackgroundMusic();
+        
+        // Play victory sound if available
+        if (this.engine.soundEnabled) {
+            try {
+                const victorySound = this.engine.resources.getSound('victory');
+                if (victorySound) {
+                    const victoryAudio = new THREE.Audio(this.audioListener);
+                    victoryAudio.setBuffer(victorySound);
+                    victoryAudio.setVolume(0.8);
+                    victoryAudio.play();
+                }
+            } catch (e) {
+                console.warn("Victory sound not found");
             }
-            
-            @keyframes slideIn {
-                from { transform: translateY(-20px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
-            }
-            
-            .game-over-container {
-                background: linear-gradient(to bottom, #500, #300);
-                border-radius: 15px;
-                padding: 30px;
-                width: 400px;
-                text-align: center;
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-                animation: slideIn 0.4s ease-out;
-                border: 2px solid #700;
-                color: white;
-            }
-            
-            .game-over-container h2 {
-                font-size: 36px;
-                margin-bottom: 15px;
-                color: #ff3333;
-                text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
-            }
-            
-            .game-over-container p {
-                font-size: 18px;
-                margin-bottom: 25px;
-            }
-            
-            .restart-button, .menu-button {
-                padding: 12px 25px;
-                font-size: 16px;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.2s;
-                font-weight: bold;
-                margin: 0 10px;
-                box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-            }
-            
-            .restart-button {
-                background-color: #ff5500;
-                color: white;
-            }
-            
-            .restart-button:hover {
-                background-color: #ff7700;
-                transform: translateY(-2px);
-            }
-            
-            .menu-button {
-                background-color: #333;
-                color: white;
-            }
-            
-            .menu-button:hover {
-                background-color: #555;
-                transform: translateY(-2px);
-            }
+        }
+        
+        // Create victory banner
+        const victoryScreen = document.createElement('div');
+        victoryScreen.className = 'victory-screen';
+        victoryScreen.innerHTML = `
+            <div class="victory-content">
+                <h2>Victory!</h2>
+                <p>Congratulations, Efrain! You've defeated the boss!</p>
+                <button id="play-again-button">Play Again</button>
+            </div>
         `;
         
-        // Add to the UI container
-        this.uiContainer.appendChild(style);
-        this.uiContainer.appendChild(gameOverPopup);
-        
-        // Stop background music
-        this.pauseBackgroundMusic();
-        
-        // Add event listeners for buttons
-        const restartButton = gameOverPopup.querySelector('.restart-button');
-        const menuButton = gameOverPopup.querySelector('.menu-button');
-        
-        restartButton.addEventListener('click', () => {
-            // Remove the game over popup
-            if (gameOverPopup.parentNode) {
-                gameOverPopup.parentNode.removeChild(gameOverPopup);
-            }
+        document.body.appendChild(victoryScreen);
+        // Add event listener
+        document.getElementById('play-again-button').addEventListener('click', () => {
+            // Remove victory screen
+            document.body.removeChild(victoryScreen);
             
-            // Restart the gameplay state
-            this.engine.stateManager.changeState('gameplay');
-        });
-        
-        menuButton.addEventListener('click', () => {
-            // Remove the game over popup
-            if (gameOverPopup.parentNode) {
-                gameOverPopup.parentNode.removeChild(gameOverPopup);
-            }
-            
-            // Return to the main menu
-            this.engine.stateManager.changeState('menu');
+            // Reload the window
+            window.location.reload();
         });
     }
 }
