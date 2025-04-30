@@ -290,7 +290,7 @@ export class FruitSelectState extends BaseState {
             
             fruitItem.innerHTML = `
                 <div class="fruit-icon">
-                    <img src="assets/models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" alt="${fruit.name}" style="width: 64px; height: 64px; object-fit: contain;">
+                    <img src="models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" alt="${fruit.name}" style="width: 64px; height: 64px; object-fit: contain;">
                 </div>
                 <div class="fruit-name">${fruit.name}</div>
                 <div class="fruit-power">Power: ${fruit.power}</div>

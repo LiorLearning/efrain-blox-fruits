@@ -5,7 +5,7 @@ import { BaseState } from './BaseState.js';
 
 // Direct path to resources without CORS proxy
 // const BASE_PATH = 'https://mathkraft-games.s3.us-east-1.amazonaws.com/efrain/blox-fruits';
-const BASE_PATH = './assets';
+const BASE_PATH = '.';
 
 export class LoadingState extends BaseState {
     constructor(engine) {

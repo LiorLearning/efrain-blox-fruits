@@ -444,7 +444,7 @@ export class GameplayState extends BaseState {
                 const usesRemaining = fruitData ? fruitData.usesRemaining : 5;
                 
                 fruitItem.innerHTML = `
-                    <img src="assets/models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" 
+                    <img src="models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" 
                          alt="${fruit.name}" 
                          style="width: 40px; height: 40px; object-fit: contain;">
                     <span class="fruit-uses">${usesRemaining}</span>
@@ -464,7 +464,7 @@ export class GameplayState extends BaseState {
                 const fruitItem = document.createElement('div');
                 fruitItem.className = 'fruit-power-item';
                 fruitItem.innerHTML = `
-                    <img src="assets/models/fruits/${type.charAt(0).toUpperCase() + type.slice(1)}Fruit.png" 
+                    <img src="models/fruits/${type.charAt(0).toUpperCase() + type.slice(1)}Fruit.png" 
                          alt="${type}" 
                          style="width: 40px; height: 40px; object-fit: contain;">
                     <span class="fruit-uses">5</span>
