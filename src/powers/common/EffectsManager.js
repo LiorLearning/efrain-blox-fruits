@@ -16,6 +16,10 @@ export class EffectsManager {
         const scene = engine?.renderer?.scene;
         if (!scene) return [];
         
+        // Always use player position instead of the provided position
+        const player = engine?.gameState?.player;
+        const playerPosition = player?.getPosition() || position;
+        
         const particles = [];
         const count = options.count || 10;
         const type = options.type || fruit.type;
@@ -25,13 +29,14 @@ export class EffectsManager {
         const actualCount = Math.min(count, 20); // Cap the max particles
         
         for (let i = 0; i < actualCount; i++) {
-            const particle = fruit.createParticle(position, {
+            const particle = fruit.createParticle(playerPosition, {
                 color,
                 size: options.size || Math.random() * 0.3 + 0.1,
                 lifetime: options.lifetime || Math.random() * 0.5 + 0.2, // Reduced lifetime
-                speed: options.speed || Math.random() * 2 + 1,
+                speed: 0, // Set speed to 0 to make particles stationary
                 opacity: options.opacity || 0.4,
-                type
+                type,
+                stationary: true // Flag to indicate particles should be stationary
             });
             
             if (particle) {

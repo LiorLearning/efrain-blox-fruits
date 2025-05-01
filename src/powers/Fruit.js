@@ -109,13 +109,7 @@ export class Fruit {
         
         // Play drop sound
         this.playDropSound();
-        
-        // Log fruit usage clearly
-        console.log(`===== FRUIT USAGE: ${this.name} =====`);
-        console.log(`Attack: ${attackName}`);
-        console.log(`Damage: ${fruitStore.getFruit(this.name).damageValues[attackName]}`);
-        console.log(`==================================`);
-        
+
         // Execute the attack-specific logic if provided
         let result = true;
         if (typeof attackFunction === 'function') {
@@ -149,8 +143,33 @@ export class Fruit {
      */
     useSpecialAttack(position, direction) {
         return this._useAttack('Special Attack', position, direction, (pos, dir) => {
-            // Default implementation - subclasses should override or use AttackImplementations
-            return true;
+            // Create an area effect at the player's position
+            const range = 10; // Default range of 10 units
+            const damage = this.power * 1.5; // Special attack does 1.5x more damage than normal
+            
+            // Create visual area effect
+            const areaEffect = this.createAreaEffect(pos, {
+                radius: range,
+                damage: damage,
+                type: this.type,
+                lifetime: 1.5, // Lasts 1.5 seconds
+                opacity: 0.4
+            });
+            
+            // Apply damage to all enemies in range
+            const affectedEnemies = this.checkEnemiesInRange(pos, range, damage, this.type);
+            
+            // Create particle effects for visual feedback
+            for (let i = 0; i < 20; i++) {
+                this.createParticle(pos, {
+                    type: this.type,
+                    spread: range * 0.8, // Particles spread within 80% of the range
+                    lifetime: 1.2,
+                    size: 0.3
+                });
+            }
+            
+            return affectedEnemies.length > 0;
         });
     }
     
@@ -224,7 +243,7 @@ export class Fruit {
         
         // Store projectile data
         projectileGroup.userData = {
-            direction: direction.clone().normalize(),
+            direction: direction ? direction.clone().normalize() : new THREE.Vector3(0, 0, 0),
             speed: options.speed || 10,
             damage: options.damage || this.power,
             lifetime: options.lifetime || 1, // reduced from 2 seconds to 1 second
@@ -351,37 +370,34 @@ export class Fruit {
         const mesh = new THREE.Mesh(geometry, material);
         particleGroup.add(mesh);
         
-        // Set position with random offset
-        const offsetX = (Math.random() - 0.5) * (options.spread || 1);
-        const offsetY = (Math.random() - 0.5) * (options.spread || 1);
-        const offsetZ = (Math.random() - 0.5) * (options.spread || 1);
-        
-        particleGroup.position.set(
-            position.x + offsetX,
-            position.y + offsetY,
-            position.z + offsetZ
-        );
-        
-        // Random direction
-        const direction = new THREE.Vector3(
-            Math.random() * 2 - 1,
-            Math.random() * 2 - 1,
-            Math.random() * 2 - 1
-        ).normalize();
+        // Set position - if stationary, don't add random offset
+        if (options.stationary) {
+            particleGroup.position.set(
+                position.x,
+                position.y,
+                position.z
+            );
+        } else {
+            // Set position with random offset
+            const offsetX = (Math.random() - 0.5) * (options.spread || 1);
+            const offsetY = (Math.random() - 0.5) * (options.spread || 1);
+            const offsetZ = (Math.random() - 0.5) * (options.spread || 1);
+            
+            particleGroup.position.set(
+                position.x + offsetX,
+                position.y + offsetY,
+                position.z + offsetZ
+            );
+        }
         
         // Store particle data
         particleGroup.userData = {
-            direction: direction,
-            speed: options.speed || 2,
+            direction: new THREE.Vector3(0, 0, 0), // Zero direction for stationary particles
+            speed: options.speed || 0, // Default to 0 speed for stationary
             lifetime: options.lifetime || 0.5, // reduced from 1 second to 0.5 seconds
             currentLifetime: 0,
             type: options.type || this.type,
             update: function(deltaTime) {
-                // Update position
-                this.position.x += this.userData.direction.x * this.userData.speed * deltaTime;
-                this.position.y += this.userData.direction.y * this.userData.speed * deltaTime;
-                this.position.z += this.userData.direction.z * this.userData.speed * deltaTime;
-                
                 // Update lifetime
                 this.userData.currentLifetime += deltaTime;
                 
@@ -412,24 +428,6 @@ export class Fruit {
         this.engine.effectsToUpdate.push(particleGroup);
         
         return particleGroup;
-    }
-    
-    /**
-     * Get player facing direction
-     */
-    getPlayerFacingDirection() {
-        // Get the camera direction
-        const camera = this.engine.renderer.camera;
-        if (!camera) return new THREE.Vector3(0, 0, -1);
-        
-        const direction = new THREE.Vector3(0, 0, -1);
-        direction.applyQuaternion(camera.quaternion);
-        
-        // If we only want horizontal movement, zero out the Y component
-        direction.y = 0;
-        direction.normalize();
-        
-        return direction;
     }
     
     /**

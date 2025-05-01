@@ -537,24 +537,23 @@ export class Player extends Entity {
             facingAngle = this.object3D.rotation.y;
         }
         
-        // Apply rotation to direction vector
-        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), facingAngle);
+        // We don't need to apply rotation since we're not using directional attacks
         
-        // Position the attack start point slightly in front of the player
+        // Position the attack at the player's position
         const attackStartPosition = new THREE.Vector3(
-            position.x + direction.x * 1.5,
+            position.x,
             position.y + 1.0, // At approximately player's "hand" height
-            position.z + direction.z * 1.5
+            position.z
         );
         
-        // Set the attack range
+        // Set the attack range (area around player)
         const attackRange = 8; 
         
         // Set cooldown
         this.attackCooldown = this.attackCooldownTime;
         
-        // Use fruit's basic attack
-        const attackResult = fruit.useBasicAttack(attackStartPosition, direction);
+        // Use fruit's basic attack without direction (passing null for direction)
+        const attackResult = fruit.useBasicAttack(attackStartPosition, null);
         
         // Check if attack was successful
         if (attackResult) {

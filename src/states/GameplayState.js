@@ -181,16 +181,25 @@ export class GameplayState extends BaseState {
         this.gameplayUI.innerHTML = `
             <div class="player-info">
                 <div class="player-name">Efrain</div>
-                <div class="health-bar">
-                    <div class="health-fill" style="width: 100%;"></div>
+                <div class="health-bar-container">
+                    <div class="health-bar">
+                        <div class="health-fill" style="width: 100%;"></div>
+                    </div>
+                    <div class="health-text">100/100</div>
                 </div>
             </div>
             <div class="game-message" id="game-message"></div>
             <div class="fruit-powers">
-                <div class="fruit-power-title">Fruit Powers</div>
+                <div class="fruit-power-header">
+                    <div class="fruit-power-title">Fruit Powers</div>
+                    <div class="fruit-power-help">Press 1-5 to select</div>
+                </div>
                 <div class="fruit-power-list"></div>
                 <div class="fruit-details-panel">
-                    <div class="fruit-details-name"></div>
+                    <div class="fruit-details-header">
+                        <div class="fruit-details-name"></div>
+                        <div class="fruit-details-type"></div>
+                    </div>
                     <div class="fruit-details-attacks"></div>
                 </div>
             </div>
@@ -201,114 +210,239 @@ export class GameplayState extends BaseState {
             </div>
         `;
         
-        // Add styling - simplified and optimized CSS
+        // Add styling - improved CSS with modern design
         const style = document.createElement('style');
         style.textContent = `
             .gameplay-ui {
                 pointer-events: none;
                 user-select: none;
                 color: white;
+                font-family: 'Arial', sans-serif;
             }
             
             .player-info {
                 position: absolute;
                 top: 20px;
                 left: 20px;
-                padding: 10px;
-                background-color: rgba(0, 0, 0, 0.5);
-                border-radius: 5px;
-                width: 200px;
+                padding: 15px;
+                background-color: rgba(0, 0, 0, 0.7);
+                border-radius: 10px;
+                width: 220px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
             }
             
             .player-name {
-                font-size: 20px;
+                font-size: 22px;
                 font-weight: bold;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
+                color: #fff;
+                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            }
+            
+            .health-bar-container {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
             }
             
             .health-bar {
                 width: 100%;
-                height: 10px;
-                background-color: #333;
-                border-radius: 5px;
+                height: 12px;
+                background-color: rgba(68, 68, 68, 0.7);
+                border-radius: 6px;
                 overflow: hidden;
+                box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
             }
             
             .health-fill {
                 height: 100%;
-                background-color: #3c3;
+                background: linear-gradient(to right, #2ecc71, #27ae60);
+                border-radius: 6px;
                 transition: width 0.3s ease;
+            }
+            
+            .health-text {
+                font-size: 12px;
+                text-align: right;
+                color: rgba(255, 255, 255, 0.8);
             }
             
             .fruit-powers {
                 position: absolute;
                 bottom: 20px;
                 left: 20px;
-                padding: 10px;
-                background-color: rgba(0, 0, 0, 0.5);
-                border-radius: 5px;
-                width: 360px;
+                padding: 15px;
+                background-color: rgba(0, 0, 0, 0.7);
+                border-radius: 10px;
+                width: 400px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            }
+            
+            .fruit-power-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
             }
             
             .fruit-power-title {
-                font-size: 18px;
+                font-size: 20px;
                 font-weight: bold;
-                margin-bottom: 10px;
+                color: #fff;
+                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            }
+            
+            .fruit-power-help {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.6);
             }
             
             .fruit-power-list {
                 display: flex;
-                gap: 10px;
+                gap: 12px;
                 margin-bottom: 15px;
             }
             
             .fruit-power-item {
-                width: 50px;
-                height: 50px;
-                background-color: rgba(255, 255, 255, 0.2);
-                border-radius: 5px;
+                width: 60px;
+                height: 60px;
+                background-color: rgba(35, 35, 35, 0.8);
+                border-radius: 8px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 24px;
                 position: relative;
+                overflow: hidden;
+                transition: all 0.2s ease;
+                border: 2px solid rgba(255, 255, 255, 0.05);
             }
             
             .fruit-power-item.active {
-                background-color: rgba(255, 215, 0, 0.4);
+                background-color: rgba(45, 45, 45, 0.9);
+                box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
                 border: 2px solid gold;
+                transform: scale(1.05);
+            }
+            
+            .fruit-power-item img {
+                width: 45px;
+                height: 45px;
+                object-fit: contain;
+                filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+                z-index: 2;
             }
             
             .fruit-uses {
                 position: absolute;
-                bottom: 2px;
-                right: 2px;
-                background-color: rgba(0, 0, 0, 0.7);
+                bottom: 3px;
+                right: 3px;
+                background-color: rgba(0, 0, 0, 0.8);
                 color: white;
                 font-size: 12px;
-                padding: 1px 4px;
-                border-radius: 4px;
+                font-weight: bold;
+                min-width: 18px;
+                height: 18px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 4px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                z-index: 3;
             }
             
             .fruit-details-panel {
-                background-color: rgba(0, 0, 0, 0.3);
-                border-radius: 5px;
-                padding: 10px;
+                background-color: rgba(35, 35, 35, 0.8);
+                border-radius: 8px;
+                padding: 15px;
+                box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            
+            .fruit-details-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             }
             
             .fruit-details-name {
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: bold;
-                margin-bottom: 8px;
+                color: #fff;
+            }
+            
+            .fruit-details-type {
+                font-size: 14px;
+                color: rgba(255, 255, 255, 0.7);
+                padding: 3px 8px;
+                background-color: rgba(0, 0, 0, 0.4);
+                border-radius: 4px;
+            }
+            
+            .fruit-attack-item {
+                display: flex;
+                flex-direction: column;
+                margin-bottom: 10px;
+                padding: 8px 10px;
+                background-color: rgba(0, 0, 0, 0.2);
+                border-radius: 6px;
+                position: relative;
+                overflow: hidden;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            
+            .fruit-attack-name {
+                font-weight: bold;
+                margin-bottom: 5px;
+                font-size: 15px;
+                display: flex;
+                justify-content: space-between;
+            }
+            
+            .fruit-attack-stats {
+                display: flex;
+                justify-content: space-between;
+                font-size: 13px;
+                color: rgba(255, 255, 255, 0.8);
+            }
+            
+            .cooldown-indicator {
+                height: 3px;
+                width: 100%;
+                background-color: rgba(68, 68, 68, 0.5);
+                border-radius: 2px;
+                margin-top: 5px;
+                overflow: hidden;
+            }
+            
+            .cooldown-bar {
+                height: 100%;
+                background: linear-gradient(to right, #3498db, #2980b9);
+                border-radius: 2px;
+                transition: width 0.1s linear;
+            }
+            
+            .attack-cooldown.ready {
+                color: #2ecc71;
+            }
+            
+            .attack-cooldown.cooling {
+                color: #f39c12;
             }
             
             .game-controls {
                 position: absolute;
                 top: 20px;
                 right: 20px;
-                padding: 10px;
-                background-color: rgba(0, 0, 0, 0.5);
-                border-radius: 5px;
+                padding: 10px 15px;
+                background-color: rgba(0, 0, 0, 0.7);
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
             }
             
             .game-message {
@@ -316,15 +450,18 @@ export class GameplayState extends BaseState {
                 top: 100px;
                 left: 50%;
                 transform: translateX(-50%);
-                background-color: rgba(0, 0, 0, 0.7);
-                color: #ff0;
+                background-color: rgba(0, 0, 0, 0.8);
+                color: #ffdd00;
                 font-size: 24px;
                 font-weight: bold;
                 padding: 15px 30px;
-                border-radius: 8px;
+                border-radius: 10px;
                 text-align: center;
                 z-index: 100;
                 display: none;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+                border: 1px solid rgba(255, 215, 0, 0.3);
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
             }
         `;
         
@@ -362,9 +499,9 @@ export class GameplayState extends BaseState {
                 
                 fruitItem.innerHTML = `
                     <img src="models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" 
-                         alt="${fruit.name}" 
-                         style="width: 40px; height: 40px; object-fit: contain;">
+                         alt="${fruit.name}">
                     <span class="fruit-uses">${usesRemaining}</span>
+                    <span class="fruit-hotkey">${index + 1}</span>
                 `;
                 fruitItem.dataset.fruitIndex = index;
                 
@@ -382,9 +519,9 @@ export class GameplayState extends BaseState {
                 fruitItem.className = 'fruit-power-item';
                 fruitItem.innerHTML = `
                     <img src="models/fruits/${type.charAt(0).toUpperCase() + type.slice(1)}Fruit.png" 
-                         alt="${type}" 
-                         style="width: 40px; height: 40px; object-fit: contain;">
+                         alt="${type}">
                     <span class="fruit-uses">5</span>
+                    <span class="fruit-hotkey">${index + 1}</span>
                 `;
                 fruitItem.dataset.fruitIndex = index;
                 
@@ -397,15 +534,37 @@ export class GameplayState extends BaseState {
         }
         
         fruitPowerList.appendChild(fragment);
+        
+        // Add CSS for the hotkeys
+        const hotkeyStyle = document.createElement('style');
+        hotkeyStyle.textContent = `
+            .fruit-hotkey {
+                position: absolute;
+                top: 3px;
+                left: 3px;
+                font-size: 11px;
+                background-color: rgba(0, 0, 0, 0.7);
+                color: rgba(255, 255, 255, 0.8);
+                min-width: 16px;
+                height: 16px;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 3;
+            }
+        `;
+        this.uiContainer.appendChild(hotkeyStyle);
     }
     
     /**
-     * Update the fruit details panel - optimized
+     * Update the fruit details panel - optimized and improved
      */
     updateFruitDetails() {
         if (!this.gameplayUI) return;
         
         const detailsName = this.gameplayUI.querySelector('.fruit-details-name');
+        const detailsType = this.gameplayUI.querySelector('.fruit-details-type');
         const detailsAttacks = this.gameplayUI.querySelector('.fruit-details-attacks');
         
         // Get the currently selected fruit
@@ -417,8 +576,13 @@ export class GameplayState extends BaseState {
         
         if (!fruitData) return;
         
-        // Update the fruit name
+        // Update the fruit name and type
         detailsName.textContent = selectedFruit.name;
+        detailsType.textContent = selectedFruit.type.charAt(0).toUpperCase() + selectedFruit.type.slice(1);
+        
+        // Set type color
+        const typeColor = this.getTypeColor(selectedFruit.type);
+        detailsType.style.backgroundColor = typeColor;
         
         // Clear and update attacks
         detailsAttacks.innerHTML = '';
@@ -426,7 +590,9 @@ export class GameplayState extends BaseState {
         // Use document fragment for better performance
         const fragment = document.createDocumentFragment();
         
-        const attackTypes = ['Basic Attack', 'Special Attack', 'Ultimate Attack'];
+        const attackTypes = ['Basic Attack', 'Special Attack'];
+        const attackKeys = ['Space', 'Shift'];
+        
         attackTypes.forEach((attackType, index) => {
             // Get the attack name from fruit attacks array if available
             const attackName = selectedFruit.attacks[index] || attackType;
@@ -437,17 +603,44 @@ export class GameplayState extends BaseState {
             // Calculate cooldown percentage
             const cooldownPercent = fruitStore.getCooldownPercentage(selectedFruit.name, attackType);
             const cooldownTime = fruitData.currentCooldowns[attackType].toFixed(1);
-            const showCooldown = cooldownPercent > 0 ? `${cooldownTime}s` : 'Ready';
+            const isReady = cooldownPercent <= 0;
             
             attackItem.innerHTML = `
-                <span>${attackName}</span>
-                <span>DMG: ${fruitData.damageValues[attackType]} | ${showCooldown}</span>
+                <div class="fruit-attack-name">
+                    <span>${attackName}</span>
+                    <span class="attack-cooldown ${isReady ? 'ready' : 'cooling'}">${isReady ? 'Ready' : cooldownTime + 's'}</span>
+                </div>
+                <div class="fruit-attack-stats">
+                    <span>Damage: ${fruitData.damageValues[attackType]}</span>
+                    <span>Key: ${attackKeys[index]}</span>
+                </div>
+                <div class="cooldown-indicator">
+                    <div class="cooldown-bar" style="width: ${100 - cooldownPercent}%"></div>
+                </div>
             `;
             
             fragment.appendChild(attackItem);
         });
         
         detailsAttacks.appendChild(fragment);
+    }
+    
+    /**
+     * Get color based on fruit type
+     */
+    getTypeColor(type) {
+        const colors = {
+            flame: 'rgba(255, 87, 34, 0.7)',
+            ice: 'rgba(33, 150, 243, 0.7)',
+            bomb: 'rgba(158, 158, 158, 0.7)',
+            light: 'rgba(255, 235, 59, 0.7)',
+            magma: 'rgba(230, 74, 25, 0.7)',
+            dark: 'rgba(66, 66, 66, 0.7)',
+            gas: 'rgba(178, 223, 219, 0.7)',
+            default: 'rgba(96, 125, 139, 0.7)'
+        };
+        
+        return colors[type] || colors.default;
     }
     
     /**
@@ -472,9 +665,40 @@ export class GameplayState extends BaseState {
                 const usesEl = item.querySelector('.fruit-uses');
                 if (usesEl) {
                     usesEl.textContent = fruitData.usesRemaining;
+                    
+                    // Update color based on uses remaining
+                    if (fruitData.usesRemaining <= 1) {
+                        usesEl.style.color = '#ff5252';
+                        usesEl.style.fontWeight = 'bold';
+                    } else {
+                        usesEl.style.color = 'white';
+                        usesEl.style.fontWeight = 'normal';
+                    }
                 }
             }
         });
+        
+        // Update the player health UI
+        if (this.player) {
+            const healthFill = this.gameplayUI.querySelector('.health-fill');
+            const healthText = this.gameplayUI.querySelector('.health-text');
+            
+            if (healthFill && healthText) {
+                const healthPercent = (this.player.health / this.player.maxHealth) * 100;
+                healthFill.style.width = `${Math.max(0, healthPercent)}%`;
+                
+                // Change color based on health
+                if (healthPercent <= 25) {
+                    healthFill.style.background = 'linear-gradient(to right, #e74c3c, #c0392b)';
+                } else if (healthPercent <= 50) {
+                    healthFill.style.background = 'linear-gradient(to right, #f39c12, #d35400)';
+                } else {
+                    healthFill.style.background = 'linear-gradient(to right, #2ecc71, #27ae60)';
+                }
+                
+                healthText.textContent = `${Math.ceil(this.player.health)}/${this.player.maxHealth}`;
+            }
+        }
         
         // Update the selected fruit's details
         this.updateFruitDetails();
@@ -523,7 +747,7 @@ export class GameplayState extends BaseState {
         }
         
         // Create 5 enemies 
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 4; i++) {
             const angle = Math.random() * Math.PI * 2;
             const radius = 8 + Math.random() * 6;
             
