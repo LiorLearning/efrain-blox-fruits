@@ -257,6 +257,11 @@ export class Player extends Entity {
             playerSprite.position.y = 2;   // Place at correct height
             playerGroup.add(playerSprite);
             
+            // Store reference to sprite for flipping
+            this.playerSprite = playerSprite;
+            // Initialize facing direction (1 for right, -1 for left)
+            this.facingDirection = 1;
+            
             // Add shadow caster
             const shadowPlane = new THREE.Mesh(
                 new THREE.CircleGeometry(0.7, 16),
@@ -449,6 +454,9 @@ export class Player extends Entity {
             // For sprite-based character, just store the facing angle
             if (this.object3D.children.length > 0 && this.object3D.children[0] instanceof THREE.Sprite) {
                 this.object3D.userData.facingAngle = angle;
+                
+                // Update sprite flipping based on movement direction
+                this._updateSpriteDirection(moveX);
             } else {
                 // For 3D model, rotate the player
                 this.object3D.rotation.y = angle;
@@ -497,6 +505,28 @@ export class Player extends Entity {
             const angle = Math.atan2(this.object3D.position.x, this.object3D.position.z);
             this.object3D.position.x = Math.sin(angle) * 45;
             this.object3D.position.z = Math.cos(angle) * 45;
+        }
+    }
+    
+    /**
+     * Update sprite direction based on movement
+     * @param {number} moveX - X direction of movement (negative = left, positive = right)
+     */
+    _updateSpriteDirection(moveX) {
+        // Only flip the sprite if we have a sprite reference
+        if (!this.playerSprite) return;
+        
+        // If moving left (negative X direction)
+        if (moveX < 0 && this.facingDirection !== -1) {
+            // Flip the sprite by making scale.x negative
+            this.playerSprite.scale.x = -Math.abs(this.playerSprite.scale.x);
+            this.facingDirection = -1;
+        } 
+        // If moving right (positive X direction)
+        else if (moveX > 0 && this.facingDirection !== 1) {
+            // Reset to normal by making scale.x positive
+            this.playerSprite.scale.x = Math.abs(this.playerSprite.scale.x);
+            this.facingDirection = 1;
         }
     }
     

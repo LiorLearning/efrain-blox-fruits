@@ -99,6 +99,11 @@ export class Enemy extends Entity {
             enemySprite.position.y = 2;     // Raised height to match larger size
             enemyGroup.add(enemySprite);
             
+            // Store reference to sprite for flipping
+            this.enemySprite = enemySprite;
+            // Initialize facing direction (1 for right, -1 for left)
+            this.facingDirection = 1;
+            
             // Add shadow caster
             const shadowPlane = new THREE.Mesh(
                 new THREE.CircleGeometry(0.7, 16),
@@ -477,6 +482,9 @@ export class Enemy extends Entity {
         // Rotate to face movement direction
         const angle = Math.atan2(normalizedDirX, normalizedDirZ);
         this.object3D.rotation.y = angle;
+        
+        // Flip sprite based on movement direction
+        this._updateSpriteDirection(normalizedDirX);
     }
     
     /**
@@ -534,6 +542,9 @@ export class Enemy extends Entity {
         // Rotate to face movement direction
         const angle = Math.atan2(normalizedDirX, normalizedDirZ);
         this.object3D.rotation.y = angle;
+        
+        // Flip sprite based on movement direction
+        this._updateSpriteDirection(normalizedDirX);
     }
     
     /**
@@ -862,6 +873,28 @@ export class Enemy extends Entity {
         // Range indicators are disabled for better gameplay experience
         if (this.rangeIndicator) {
             this.rangeIndicator.visible = false;
+        }
+    }
+    
+    /**
+     * Update sprite direction based on movement
+     * @param {number} dirX - X direction of movement (negative = left, positive = right)
+     */
+    _updateSpriteDirection(dirX) {
+        // Only flip the sprite if we have a sprite reference
+        if (!this.enemySprite) return;
+        
+        // If moving left (negative X direction)
+        if (dirX < 0 && this.facingDirection !== -1) {
+            // Flip the sprite by making scale.x negative
+            this.enemySprite.scale.x = -Math.abs(this.enemySprite.scale.x);
+            this.facingDirection = -1;
+        } 
+        // If moving right (positive X direction)
+        else if (dirX > 0 && this.facingDirection !== 1) {
+            // Reset to normal by making scale.x positive
+            this.enemySprite.scale.x = Math.abs(this.enemySprite.scale.x);
+            this.facingDirection = 1;
         }
     }
 }

@@ -174,6 +174,11 @@ export class MiniBoss extends Entity {
             bossSprite.position.y = 3;   // Place at correct height
             bossGroup.add(bossSprite);
             
+            // Store reference to sprite for flipping
+            this.bossSprite = bossSprite;
+            // Initialize facing direction (1 for right, -1 for left)
+            this.facingDirection = 1;
+            
             // Add shadow caster
             const shadowPlane = new THREE.Mesh(
                 new THREE.CircleGeometry(1.2, 16),
@@ -427,58 +432,6 @@ export class MiniBoss extends Entity {
     }
     
     /**
-     * Update roam behavior
-     */
-    _updateRoam(deltaTime) {
-        // Check if player is solving math problem
-        const gameState = this.engine.stateManager.getCurrentState();
-        if (gameState && gameState.player && gameState.player.mathChallengeActive) {
-            return; // Pause movement if player is solving math
-        }
-        
-        // If no roam target, set one
-        if (!this.roamTarget) {
-            this._setRandomRoamTarget();
-            return;
-        }
-        
-        // Get current position
-        const pos = this.getPosition();
-        if (!pos) return;
-        
-        // Calculate direction to roam target
-        const dirX = this.roamTarget.x - pos.x;
-        const dirZ = this.roamTarget.z - pos.z;
-        
-        // Calculate distance to target
-        const distanceToTarget = Math.sqrt(dirX * dirX + dirZ * dirZ);
-        
-        // If we've reached the target, set a new one
-        if (distanceToTarget < 1.0) {
-            this._setRandomRoamTarget();
-            
-            // Sometimes transition back to idle
-            if (Math.random() < 0.3) {
-                this.currentState = 'idle';
-            }
-            return;
-        }
-        
-        // Normalize direction and move
-        const normalizedDirX = dirX / distanceToTarget;
-        const normalizedDirZ = dirZ / distanceToTarget;
-        
-        // Move toward target at half speed
-        const moveSpeed = (this.speed * 0.5) * deltaTime;
-        this.object3D.position.x += normalizedDirX * moveSpeed;
-        this.object3D.position.z += normalizedDirZ * moveSpeed;
-        
-        // Rotate to face movement direction
-        const angle = Math.atan2(normalizedDirX, normalizedDirZ);
-        this.object3D.rotation.y = angle;
-    }
-    
-    /**
      * Update chase behavior
      */
     _updateChase(deltaTime) {
@@ -533,6 +486,64 @@ export class MiniBoss extends Entity {
         // Rotate to face movement direction
         const angle = Math.atan2(normalizedDirX, normalizedDirZ);
         this.object3D.rotation.y = angle;
+        
+        // Flip sprite based on movement direction
+        this._updateSpriteDirection(normalizedDirX);
+    }
+    
+    /**
+     * Update roam behavior
+     */
+    _updateRoam(deltaTime) {
+        // Check if player is solving math problem
+        const gameState = this.engine.stateManager.getCurrentState();
+        if (gameState && gameState.player && gameState.player.mathChallengeActive) {
+            return; // Pause movement if player is solving math
+        }
+        
+        // If no roam target, set one
+        if (!this.roamTarget) {
+            this._setRandomRoamTarget();
+            return;
+        }
+        
+        // Get current position
+        const pos = this.getPosition();
+        if (!pos) return;
+        
+        // Calculate direction to roam target
+        const dirX = this.roamTarget.x - pos.x;
+        const dirZ = this.roamTarget.z - pos.z;
+        
+        // Calculate distance to target
+        const distanceToTarget = Math.sqrt(dirX * dirX + dirZ * dirZ);
+        
+        // If we've reached the target, set a new one
+        if (distanceToTarget < 1.0) {
+            this._setRandomRoamTarget();
+            
+            // Sometimes transition back to idle
+            if (Math.random() < 0.3) {
+                this.currentState = 'idle';
+            }
+            return;
+        }
+        
+        // Normalize direction and move
+        const normalizedDirX = dirX / distanceToTarget;
+        const normalizedDirZ = dirZ / distanceToTarget;
+        
+        // Move toward target at half speed
+        const moveSpeed = (this.speed * 0.5) * deltaTime;
+        this.object3D.position.x += normalizedDirX * moveSpeed;
+        this.object3D.position.z += normalizedDirZ * moveSpeed;
+        
+        // Rotate to face movement direction
+        const angle = Math.atan2(normalizedDirX, normalizedDirZ);
+        this.object3D.rotation.y = angle;
+        
+        // Flip sprite based on movement direction
+        this._updateSpriteDirection(normalizedDirX);
     }
     
     /**
@@ -990,6 +1001,28 @@ export class MiniBoss extends Entity {
         // Range indicators are disabled for better gameplay experience
         if (this.rangeIndicator) {
             this.rangeIndicator.visible = false;
+        }
+    }
+    
+    /**
+     * Update sprite direction based on movement
+     * @param {number} dirX - X direction of movement (negative = left, positive = right)
+     */
+    _updateSpriteDirection(dirX) {
+        // Only flip the sprite if we have a sprite reference
+        if (!this.bossSprite) return;
+        
+        // If moving left (negative X direction)
+        if (dirX < 0 && this.facingDirection !== -1) {
+            // Flip the sprite by making scale.x negative
+            this.bossSprite.scale.x = -Math.abs(this.bossSprite.scale.x);
+            this.facingDirection = -1;
+        } 
+        // If moving right (positive X direction)
+        else if (dirX > 0 && this.facingDirection !== 1) {
+            // Reset to normal by making scale.x positive
+            this.bossSprite.scale.x = Math.abs(this.bossSprite.scale.x);
+            this.facingDirection = 1;
         }
     }
 }
