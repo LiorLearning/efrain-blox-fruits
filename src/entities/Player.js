@@ -1011,8 +1011,8 @@ export class Player extends Entity {
      * Generate a math problem based on difficulty level
      * 0 = Easy (single digit multiplication)
      * 1 = Medium (double digit by single digit multiplication)
-     * 2 = Hard (double digit multiplication or simple division)
-     * 3 = Very Hard (more complex multiplication and division)
+     * 2 = Hard (simple addition and subtraction with larger numbers)
+     * 3 = Medium-Hard (combination of operations)
      */
     _generateMathProblem(difficultyLevel) {
         let num1, num2, operation, answer;
@@ -1032,35 +1032,44 @@ export class Player extends Entity {
                 answer = num1 * num2;
                 break;
                 
-            case 2: // Hard
-                // 50% chance of multiplication or division
+            case 2: // Hard - now using addition/subtraction instead of multiplication
                 if (Math.random() < 0.5) {
-                    num1 = Math.floor(Math.random() * 40) + 10; // 10-49
-                    num2 = Math.floor(Math.random() * 9) + 1; // 1-9
-                    operation = "×";
-                    answer = num1 * num2;
+                    // Addition with larger numbers
+                    num1 = Math.floor(Math.random() * 50) + 50; // 50-99
+                    num2 = Math.floor(Math.random() * 50) + 50; // 50-99
+                    operation = "+";
+                    answer = num1 + num2;
                 } else {
-                    // Division where result is a whole number
-                    num2 = Math.floor(Math.random() * 9) + 1; // 1-9
-                    answer = Math.floor(Math.random() * 10) + 1; // 1-10
-                    num1 = num2 * answer;
-                    operation = "÷";
+                    // Subtraction with larger numbers (ensure positive result)
+                    num1 = Math.floor(Math.random() * 50) + 50; // 50-99
+                    num2 = Math.floor(Math.random() * 40) + 10; // 10-49
+                    operation = "-";
+                    answer = num1 - num2;
                 }
                 break;
                 
-            case 3: // Very Hard
-                // 50% chance of multiplication or division
-                if (Math.random() < 0.5) {
-                    num1 = Math.floor(Math.random() * 40) + 10; // 10-49
-                    num2 = Math.floor(Math.random() * 40) + 10; // 10-49
+            case 3: // Medium-Hard - combination of operations
+                // Random choice between addition, subtraction, or simple multiplication
+                const opChoice = Math.floor(Math.random() * 3);
+                
+                if (opChoice === 0) {
+                    // Addition with larger numbers
+                    num1 = Math.floor(Math.random() * 50) + 50; // 50-99
+                    num2 = Math.floor(Math.random() * 50) + 50; // 50-99
+                    operation = "+";
+                    answer = num1 + num2;
+                } else if (opChoice === 1) {
+                    // Subtraction with larger numbers
+                    num1 = Math.floor(Math.random() * 70) + 30; // 30-99
+                    num2 = Math.floor(Math.random() * 29) + 1; // 1-29
+                    operation = "-";
+                    answer = num1 - num2;
+                } else {
+                    // Simple multiplication (1-digit by 1-digit)
+                    num1 = Math.floor(Math.random() * 9) + 1; // 1-9
+                    num2 = Math.floor(Math.random() * 9) + 1; // 1-9
                     operation = "×";
                     answer = num1 * num2;
-                } else {
-                    // More complex division
-                    num2 = Math.floor(Math.random() * 12) + 2; // 2-13
-                    answer = Math.floor(Math.random() * 15) + 5; // 5-19
-                    num1 = num2 * answer;
-                    operation = "÷";
                 }
                 break;
                 

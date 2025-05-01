@@ -159,7 +159,7 @@ export class GameplayState extends BaseState {
         camera.lookAt(0, 0, 0);
         
         // Adjust camera settings
-        camera.fov = 45; // Narrower field of view for more isometric look
+        camera.fov = 70; // Wider field of view for better visibility
         camera.updateProjectionMatrix();
         
         // Disable orbit controls for gameplay
@@ -521,8 +521,8 @@ export class GameplayState extends BaseState {
             this.boss = null;
         }
         
-        // Create fewer enemies for better performance
-        for (let i = 0; i < 2; i++) {
+        // Create 5 enemies 
+        for (let i = 0; i < 5; i++) {
             const angle = Math.random() * Math.PI * 2;
             const radius = 8 + Math.random() * 6;
             

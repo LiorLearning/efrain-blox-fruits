@@ -3,6 +3,8 @@
  */
 import * as THREE from 'three';
 import fruitStore from '../lib/FruitStore.js';
+import { AttackImplementations } from './common/AttackImplementations.js';
+import { EffectsManager } from './common/EffectsManager.js';
 
 export class Fruit {
     constructor(engine, options = {}) {
@@ -120,7 +122,10 @@ export class Fruit {
      * Use a basic attack
      */
     useBasicAttack(position, direction) {
-        return this._useAttack('Basic Attack', position, direction);
+        return this._useAttack('Basic Attack', position, direction, (pos, dir) => {
+            // Default implementation - subclasses should override or use AttackImplementations
+            return true;
+        });
     }
     
     /**
@@ -136,14 +141,20 @@ export class Fruit {
      * Use a special attack
      */
     useSpecialAttack(position, direction) {
-        return this._useAttack('Special Attack', position, direction);
+        return this._useAttack('Special Attack', position, direction, (pos, dir) => {
+            // Default implementation - subclasses should override or use AttackImplementations
+            return true;
+        });
     }
     
     /**
      * Use an ultimate attack
      */
     useUltimateAttack(position, direction) {
-        return this._useAttack('Ultimate Attack', position, direction);
+        return this._useAttack('Ultimate Attack', position, direction, (pos, dir) => {
+            // Default implementation - subclasses should override or use AttackImplementations
+            return true;
+        });
     }
     
     /**
@@ -181,7 +192,7 @@ export class Fruit {
     }
     
     /**
-     * Create a projectile or effect
+     * Create a projectile or effect - leveraging common implementations
      */
     createProjectile(position, direction, options = {}) {
         const scene = this.engine.renderer.scene;
@@ -191,9 +202,9 @@ export class Fruit {
         const projectileGroup = new THREE.Group();
         
         // Add visual representation
-        const geometry = options.geometry || new THREE.SphereGeometry(0.5, 8, 8);
+        const geometry = options.geometry || EffectsManager.getTypeGeometry(options.type || this.type);
         const material = options.material || new THREE.MeshBasicMaterial({ 
-            color: options.color || 0xffffff
+            color: options.color || EffectsManager.getTypeColor(options.type || this.type)
         });
         
         const mesh = new THREE.Mesh(geometry, material);
@@ -209,7 +220,7 @@ export class Fruit {
             damage: options.damage || this.power,
             lifetime: options.lifetime || 2, // seconds
             currentLifetime: 0,
-            type: options.type || 'projectile',
+            type: options.type || this.type,
             source: options.source || 'player',
             update: function(deltaTime) {
                 // Update position
@@ -243,45 +254,50 @@ export class Fruit {
     }
     
     /**
-     * Create an area effect
+     * Create an area effect - leveraging common implementations
      */
     createAreaEffect(position, options = {}) {
         const scene = this.engine.renderer.scene;
         if (!scene) return null;
         
-        // Create effect group
-        const effectGroup = new THREE.Group();
+        // Create an area effect group
+        const areaEffectGroup = new THREE.Group();
         
-        // Add visual representation - a circle on the ground
-        const geometry = options.geometry || new THREE.CircleGeometry(options.radius || 7.5, 32);
-        const material = options.material || new THREE.MeshBasicMaterial({ 
-            color: options.color || 0xffffff,
+        // Create a visual representation
+        const geometry = new THREE.SphereGeometry(options.radius || 5, 16, 16);
+        const material = new THREE.MeshBasicMaterial({
+            color: options.color || EffectsManager.getTypeColor(options.type || this.type),
             transparent: true,
             opacity: options.opacity || 0.5
         });
         
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.rotation.x = -Math.PI / 2; // Make horizontal
-        effectGroup.add(mesh);
+        areaEffectGroup.add(mesh);
         
         // Set position
-        effectGroup.position.copy(position);
+        areaEffectGroup.position.copy(position);
         
         // Store effect data
-        effectGroup.userData = {
-            damage: options.damage || this.power / 2,
+        areaEffectGroup.userData = {
+            radius: options.radius || 5,
+            damage: options.damage || this.power,
             lifetime: options.lifetime || 3, // seconds
             currentLifetime: 0,
-            radius: options.radius || 7.5,
-            type: options.type || 'area',
+            type: options.type || this.type,
             source: options.source || 'player',
             update: function(deltaTime) {
-                // Pulse effect
-                const scale = 1 + 0.1 * Math.sin(this.userData.currentLifetime * 5);
-                mesh.scale.set(scale, scale, 1);
-                
                 // Update lifetime
                 this.userData.currentLifetime += deltaTime;
+                
+                // Update opacity based on lifetime
+                const remainingLifePercent = 1 - (this.userData.currentLifetime / this.userData.lifetime);
+                const mesh = this.children[0];
+                if (mesh && mesh.material) {
+                    mesh.material.opacity = (options.opacity || 0.5) * remainingLifePercent;
+                }
+                
+                // Apply damage to enemies in range
+                // This would be handled by game logic elsewhere
                 
                 // Destroy if lifetime is exceeded
                 if (this.userData.currentLifetime >= this.userData.lifetime) {
@@ -290,138 +306,207 @@ export class Fruit {
                 }
                 
                 return true;
-            }.bind(effectGroup)
+            }.bind(areaEffectGroup)
         };
         
         // Add to scene
-        scene.add(effectGroup);
+        scene.add(areaEffectGroup);
         
-        // Track the effect in engine
+        // Track the effect in engine effects
         if (!this.engine.effectsToUpdate) {
             this.engine.effectsToUpdate = [];
         }
-        this.engine.effectsToUpdate.push(effectGroup);
+        this.engine.effectsToUpdate.push(areaEffectGroup);
         
-        return effectGroup;
+        return areaEffectGroup;
     }
     
     /**
-     * Create particle effects (disabled)
+     * Create a particle - leveraging common implementations 
      */
     createParticle(position, options = {}) {
-        // Disabled to remove all particle effects
-        return null;
+        const scene = this.engine.renderer.scene;
+        if (!scene) return null;
+        
+        // Create a particle
+        const particleGroup = new THREE.Group();
+        
+        // Add visual representation
+        const geometry = options.geometry || new THREE.SphereGeometry(options.size || 0.2, 8, 8);
+        const material = options.material || new THREE.MeshBasicMaterial({ 
+            color: options.color || EffectsManager.getTypeColor(options.type || this.type),
+            transparent: true,
+            opacity: options.opacity || 0.8
+        });
+        
+        const mesh = new THREE.Mesh(geometry, material);
+        particleGroup.add(mesh);
+        
+        // Set position with random offset
+        const offsetX = (Math.random() - 0.5) * (options.spread || 1);
+        const offsetY = (Math.random() - 0.5) * (options.spread || 1);
+        const offsetZ = (Math.random() - 0.5) * (options.spread || 1);
+        
+        particleGroup.position.set(
+            position.x + offsetX,
+            position.y + offsetY,
+            position.z + offsetZ
+        );
+        
+        // Random direction
+        const direction = new THREE.Vector3(
+            Math.random() * 2 - 1,
+            Math.random() * 2 - 1,
+            Math.random() * 2 - 1
+        ).normalize();
+        
+        // Store particle data
+        particleGroup.userData = {
+            direction: direction,
+            speed: options.speed || 2,
+            lifetime: options.lifetime || 1, // seconds
+            currentLifetime: 0,
+            type: options.type || this.type,
+            update: function(deltaTime) {
+                // Update position
+                this.position.x += this.userData.direction.x * this.userData.speed * deltaTime;
+                this.position.y += this.userData.direction.y * this.userData.speed * deltaTime;
+                this.position.z += this.userData.direction.z * this.userData.speed * deltaTime;
+                
+                // Update lifetime
+                this.userData.currentLifetime += deltaTime;
+                
+                // Update opacity based on lifetime
+                const remainingLifePercent = 1 - (this.userData.currentLifetime / this.userData.lifetime);
+                const mesh = this.children[0];
+                if (mesh && mesh.material) {
+                    mesh.material.opacity = (options.opacity || 0.8) * remainingLifePercent;
+                }
+                
+                // Destroy if lifetime is exceeded
+                if (this.userData.currentLifetime >= this.userData.lifetime) {
+                    scene.remove(this);
+                    return false;
+                }
+                
+                return true;
+            }.bind(particleGroup)
+        };
+        
+        // Add to scene
+        scene.add(particleGroup);
+        
+        // Track the particle in engine effects
+        if (!this.engine.effectsToUpdate) {
+            this.engine.effectsToUpdate = [];
+        }
+        this.engine.effectsToUpdate.push(particleGroup);
+        
+        return particleGroup;
     }
     
     /**
      * Get player facing direction
      */
     getPlayerFacingDirection() {
-        const player = this.engine.player;
-        if (!player || !player.object3D) {
-            return new THREE.Vector3(0, 0, -1); // Default forward
-        }
+        // Get the camera direction
+        const camera = this.engine.renderer.camera;
+        if (!camera) return new THREE.Vector3(0, 0, -1);
         
-        // Calculate attack direction based on player orientation
-        let direction = new THREE.Vector3(0, 0, -1); // Default: forward
+        const direction = new THREE.Vector3(0, 0, -1);
+        direction.applyQuaternion(camera.quaternion);
         
-        // Get facing angle from either the sprite or the 3D model
-        let facingAngle = 0;
-        if (player.object3D.userData.facingAngle !== undefined) {
-            facingAngle = player.object3D.userData.facingAngle;
-        } else {
-            facingAngle = player.object3D.rotation.y;
-        }
-        
-        // Apply rotation to direction vector
-        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), facingAngle);
+        // If we only want horizontal movement, zero out the Y component
+        direction.y = 0;
+        direction.normalize();
         
         return direction;
     }
     
     /**
-     * Check for enemies in attack range
+     * Check enemies in range - common implementation 
      */
     checkEnemiesInRange(position, range, damage, damageType) {
-        range = 18; // Override range to 18 (1.5x the original 12)
-        console.log("Checking enemies in range", position, range, damage, damageType);
-        const gameState = this.engine.stateManager.getCurrentState();
-        if (!gameState) {
-            console.log("No game state found");
-            return false;
-        }
+        // This would be implemented by the game's collision system
+        // Stub implementation for now
+        console.log(`Checking enemies in range ${range}, damage ${damage}, type ${damageType}`);
         
-        if (!gameState.enemies || !Array.isArray(gameState.enemies)) {
-            console.log("No enemies array found in game state");
-            return false;
-        }
+        // Get all objects in the scene
+        const scene = this.engine.renderer.scene;
+        if (!scene) return [];
         
-        let hitAny = false;
-        console.log(`Checking enemies in range ${range} at position (${position.x}, ${position.z})`);
-        console.log(`Damage: ${damage}, Type: ${damageType}`);
+        const affectedEnemies = [];
         
-        // Check all enemies
-        for (const enemy of gameState.enemies) {
-            if (!enemy || !enemy.getPosition || !enemy.takeDamage) {
-                console.log("Found enemy without proper methods");
-                continue;
-            }
-            
-            const enemyPos = enemy.getPosition();
-            if (!enemyPos) {
-                console.log("Enemy position not available");
-                continue;
-            }
-            
-            const dist = Math.sqrt(
-                Math.pow(position.x - enemyPos.x, 2) + 
-                Math.pow(position.z - enemyPos.z, 2)
-            );
-            
-            console.log(`Enemy ${enemy.name} at distance ${dist.toFixed(2)} (range: ${range})`);
-            
-            if (dist <= range) {
-                // Calculate damage with falloff
-                const falloff = 1 - (dist / range);
-                const damageAmount = Math.max(1, damage * falloff); // Ensure at least 1 damage
+        // Check distance to each object
+        scene.traverse(object => {
+            // Only consider objects with userData.type === 'enemy'
+            if (object.userData && object.userData.type === 'enemy') {
+                // Calculate distance
+                const distance = position.distanceTo(object.position);
                 
-                // Apply damage
-                console.log(`Hitting enemy ${enemy.name} with ${damageAmount.toFixed(1)} damage`);
-                enemy.takeDamage(damageAmount, damageType);
-                hitAny = true;
-            }
-        }
-        
-        // Check boss if exists
-        if (gameState.boss && gameState.boss.getPosition && gameState.boss.takeDamage) {
-            const bossPos = gameState.boss.getPosition();
-            if (bossPos) {
-                const dist = Math.sqrt(
-                    Math.pow(position.x - bossPos.x, 2) + 
-                    Math.pow(position.z - bossPos.z, 2)
-                );
-                
-                console.log(`Boss ${gameState.boss.name} at distance ${dist.toFixed(2)} (range: ${range})`);
-                
-                if (dist <= range) {
-                    // Calculate damage with falloff
-                    const falloff = 1 - (dist / range);
-                    const damageAmount = Math.max(1, damage * falloff); // Ensure at least 1 damage
+                // If within range, apply damage
+                if (distance <= range) {
+                    // Add to affected enemies
+                    affectedEnemies.push(object);
+                    
+                    // Apply status effect based on damage type
+                    if (damageType) {
+                        const statusEffectOptions = this._getStatusEffectForType(damageType, damage);
+                        if (statusEffectOptions) {
+                            EffectsManager.applyStatusEffect(this, object, statusEffectOptions);
+                        }
+                    }
                     
                     // Apply damage
-                    console.log(`Hitting boss ${gameState.boss.name} with ${damageAmount.toFixed(1)} damage`);
-                    gameState.boss.takeDamage(damageAmount, damageType);
-                    hitAny = true;
+                    if (object.userData.takeDamage) {
+                        object.userData.takeDamage(damage, damageType);
+                    } else {
+                        // Default damage handling
+                        if (!object.userData.health) {
+                            object.userData.health = 100;
+                        }
+                        object.userData.health -= damage;
+                        console.log(`Enemy took ${damage} damage, health: ${object.userData.health}`);
+                    }
                 }
             }
-        }
+        });
         
-        if (hitAny) {
-            console.log("Successfully hit targets with attack!");
-        } else {
-            console.log("No targets were in range of the attack");
+        return affectedEnemies;
+    }
+    
+    /**
+     * Get the appropriate status effect based on damage type
+     */
+    _getStatusEffectForType(damageType, damage) {
+        switch (damageType) {
+            case 'flame':
+            case 'magma':
+                return {
+                    type: damageType,
+                    duration: 3,
+                    tickDamage: damage * 0.1
+                };
+            case 'ice':
+                return {
+                    type: damageType,
+                    duration: 2,
+                    slowFactor: 0.5
+                };
+            case 'bomb':
+                return {
+                    type: damageType,
+                    duration: 1,
+                    knockback: 5
+                };
+            case 'light':
+                return {
+                    type: damageType,
+                    duration: 2,
+                    blindEffect: true
+                };
+            default:
+                return null;
         }
-        
-        return hitAny;
     }
 }

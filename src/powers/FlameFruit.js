@@ -4,23 +4,35 @@
 import { Fruit } from './Fruit.js';
 import * as THREE from 'three';
 import fruitStore from '../lib/FruitStore.js';
+import { AttackImplementations } from './common/AttackImplementations.js';
+import { EffectsManager } from './common/EffectsManager.js';
+import { fruitConfigurations } from './common/FruitConfigurations.js';
 
 export class FlameFruit extends Fruit {
     constructor(engine, options = {}) {
+        // Get flame fruit configuration
+        const config = fruitConfigurations.flame;
+        
         // Set default options for Flame Fruit
         const flameOptions = {
-            name: options.name || 'Flame Fruit',
-            type: 'flame',
-            power: options.power || 40,
-            attacks: ['Fireball', 'Flame Wave', 'Inferno'],
+            name: options.name || config.name,
+            type: config.type,
+            power: options.power || config.power,
+            attacks: config.attacks,
             ...options
         };
         
         super(engine, flameOptions);
         
         // Special properties for Flame Fruit
-        this.burnDuration = 3; // seconds
-        this.burnDamage = 2; // damage per second
+        this.burnDuration = config.specialProperties.burnDuration;
+        this.burnDamage = config.specialProperties.burnDamage;
+        
+        // Store colors for attacks
+        this.colors = config.colors;
+        
+        // Store attack settings
+        this.attackSettings = config.attackSettings;
     }
     
     /**
@@ -29,16 +41,20 @@ export class FlameFruit extends Fruit {
     useBasicAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Basic Attack', position, direction, (pos, dir) => {
-            // Create a fireball projectile
-            // // const fireball = this.createProjectile(pos, dir, {
-            // //     color: 0xff5500,
-            // //     speed: 15,
-            // //     damage: fruitStore.getFruit(this.name).damageValues['Basic Attack'],
-            // //     type: 'flame'
-            // });
+            // Get attack settings
+            const attackSettings = this.attackSettings['Basic Attack'];
             
-            // Check for enemies in range (will be done during projectile update)
-            this.checkEnemiesInRange(pos, 3, fruitStore.getFruit(this.name).damageValues['Basic Attack'], 'flame');
+            // Create a fireball projectile using common implementation
+            const fireball = AttackImplementations.createProjectileAttack(this, pos, dir, {
+                color: this.colors.primary,
+                speed: attackSettings.speed,
+                lifetime: attackSettings.lifetime,
+                type: this.type,
+                attackName: 'Basic Attack',
+                fruitStore: fruitStore,
+                immediateRange: attackSettings.range
+            });
+            
             return true;
         });
     }
@@ -49,18 +65,29 @@ export class FlameFruit extends Fruit {
     useSpecialAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Special Attack', position, direction, (pos, dir) => {
-            // Create a flame wave area effect
-            // const flameWave = this.createAreaEffect(pos, {
-            //     color: 0xff3300,
-            //     radius: 5,
-            //     damage: fruitStore.getFruit(this.name).damageValues['Special Attack'],
-            //     lifetime: 2,
-            //     opacity: 0.7,
-            //     type: 'flame'
-            // });
+            // Get attack settings
+            const attackSettings = this.attackSettings['Special Attack'];
             
-            // Apply immediate damage to enemies in range
-            this.checkEnemiesInRange(pos, 5, fruitStore.getFruit(this.name).damageValues['Special Attack'], 'flame');
+            // Create a flame wave area effect using common implementation
+            const flameWave = AttackImplementations.createAreaEffectAttack(this, pos, {
+                color: this.colors.secondary,
+                radius: attackSettings.radius,
+                lifetime: attackSettings.lifetime,
+                opacity: attackSettings.opacity,
+                type: this.type,
+                attackName: 'Special Attack',
+                fruitStore: fruitStore
+            });
+            
+            // Create flame particles
+            EffectsManager.createParticles(this, pos, {
+                count: 15,
+                color: this.colors.secondary,
+                type: this.type,
+                lifetime: 1.5,
+                size: 0.3,
+                speed: 3
+            });
             
             return true;
         });
@@ -72,18 +99,29 @@ export class FlameFruit extends Fruit {
     useUltimateAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Ultimate Attack', position, direction, (pos, dir) => {
-            // Create a large inferno area effect
-            // const inferno = this.createAreaEffect(pos, {
-            //     color: 0xff0000,
-            //     radius: 8,
-            //     damage: fruitStore.getFruit(this.name).damageValues['Ultimate Attack'],
-            //     lifetime: 5,
-            //     opacity: 0.8,
-            //     type: 'flame'
-            // });
+            // Get attack settings
+            const attackSettings = this.attackSettings['Ultimate Attack'];
             
-            // Apply immediate damage to enemies in range
-            this.checkEnemiesInRange(pos, 8, fruitStore.getFruit(this.name).damageValues['Ultimate Attack'], 'flame');
+            // Create a large inferno area effect using common implementation
+            const inferno = AttackImplementations.createAreaEffectAttack(this, pos, {
+                color: this.colors.ultimate,
+                radius: attackSettings.radius,
+                lifetime: attackSettings.lifetime,
+                opacity: attackSettings.opacity,
+                type: this.type,
+                attackName: 'Ultimate Attack',
+                fruitStore: fruitStore
+            });
+            
+            // Create flame particles
+            EffectsManager.createParticles(this, pos, {
+                count: 30,
+                color: this.colors.ultimate,
+                type: this.type,
+                lifetime: 3,
+                size: 0.4,
+                speed: 4
+            });
             
             return true;
         });

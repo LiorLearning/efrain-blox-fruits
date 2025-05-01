@@ -4,22 +4,35 @@
 import { Fruit } from './Fruit.js';
 import * as THREE from 'three';
 import fruitStore from '../lib/FruitStore.js';
+import { AttackImplementations } from './common/AttackImplementations.js';
+import { EffectsManager } from './common/EffectsManager.js';
+import { fruitConfigurations } from './common/FruitConfigurations.js';
 
 export class LightFruit extends Fruit {
     constructor(engine, options = {}) {
+        // Get light fruit configuration
+        const config = fruitConfigurations.light;
+        
         // Set default options for Light Fruit
         const lightOptions = {
-            name: options.name || 'Light Fruit',
-            type: 'light',
-            power: options.power || 32,
-            attacks: options.attacks || ['Light Beam', 'Flash Step', 'Solar Flare'],
+            name: options.name || config.name,
+            type: config.type,
+            power: options.power || config.power,
+            attacks: config.attacks,
             ...options
         };
         
         super(engine, lightOptions);
         
         // Special properties for Light Fruit
-        this.speedBoost = 2; // Speed multiplier for movement
+        this.blindDuration = config.specialProperties.blindDuration;
+        this.speedBoost = config.specialProperties.speedBoost;
+        
+        // Store colors for attacks
+        this.colors = config.colors;
+        
+        // Store attack settings
+        this.attackSettings = config.attackSettings;
     }
     
     /**
@@ -28,8 +41,30 @@ export class LightFruit extends Fruit {
     useBasicAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Basic Attack', position, direction, (pos, dir) => {
-            // Apply damage to enemies in a straight line
-            this.checkEnemiesInRange(pos, 6, fruitStore.getFruit(this.name).damageValues['Basic Attack'], 'light');
+            // Get attack settings
+            const attackSettings = this.attackSettings['Basic Attack'];
+            
+            // Create a light beam projectile using common implementation
+            const lightBeam = AttackImplementations.createProjectileAttack(this, pos, dir, {
+                color: this.colors.primary,
+                speed: attackSettings.speed,
+                lifetime: attackSettings.lifetime,
+                type: this.type,
+                attackName: 'Basic Attack',
+                fruitStore: fruitStore,
+                immediateRange: attackSettings.range
+            });
+            
+            // Create light particles
+            EffectsManager.createParticles(this, pos, {
+                count: 12,
+                color: this.colors.primary,
+                type: this.type,
+                lifetime: 1,
+                size: 0.2,
+                speed: 4
+            });
+            
             return true;
         });
     }
@@ -40,8 +75,46 @@ export class LightFruit extends Fruit {
     useSpecialAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Special Attack', position, direction, (pos, dir) => {
-            // Apply damage to enemies around the player
-            this.checkEnemiesInRange(pos, 5, fruitStore.getFruit(this.name).damageValues['Special Attack'], 'light');
+            // Get attack settings
+            const attackSettings = this.attackSettings['Special Attack'];
+            
+            // Create a flash step self-buff using common implementation
+            const flashStep = AttackImplementations.createSelfBuffAttack(this, pos, {
+                color: this.colors.secondary,
+                radius: attackSettings.radius,
+                duration: attackSettings.lifetime,
+                opacity: attackSettings.opacity,
+                type: this.type,
+                attackName: 'Special Attack',
+                fruitStore: fruitStore,
+                buffCallback: (fruit, position, damage) => {
+                    // Apply the teleport/speed boost logic here
+                    // Calculate new position based on direction
+                    const teleportDistance = 5; // 5 units forward
+                    const newPos = new THREE.Vector3(
+                        position.x + dir.x * teleportDistance,
+                        position.y + dir.y * teleportDistance,
+                        position.z + dir.z * teleportDistance
+                    );
+                    
+                    // Check for enemies at destination
+                    fruit.checkEnemiesInRange(newPos, 3, damage, fruit.type);
+                    
+                    // Apply speed boost to player (would be handled by game logic)
+                    console.log(`Speed boost applied: ${this.speedBoost}x for ${attackSettings.lifetime} seconds`);
+                }
+            });
+            
+            // Create light particles at both origin and destination
+            EffectsManager.createParticles(this, pos, {
+                count: 20,
+                color: this.colors.secondary,
+                type: this.type,
+                lifetime: 0.5,
+                size: 0.3,
+                speed: 3
+            });
+            
             return true;
         });
     }
@@ -52,8 +125,30 @@ export class LightFruit extends Fruit {
     useUltimateAttack(position, direction) {
         // Use the centralized attack logic
         return this._useAttack('Ultimate Attack', position, direction, (pos, dir) => {
-            // Apply damage to all enemies in a wide area
-            this.checkEnemiesInRange(pos, 15, fruitStore.getFruit(this.name).damageValues['Ultimate Attack'], 'light');
+            // Get attack settings
+            const attackSettings = this.attackSettings['Ultimate Attack'];
+            
+            // Create a solar flare area effect using common implementation
+            const solarFlare = AttackImplementations.createAreaEffectAttack(this, pos, {
+                color: this.colors.ultimate,
+                radius: attackSettings.radius,
+                lifetime: attackSettings.lifetime,
+                opacity: attackSettings.opacity,
+                type: this.type,
+                attackName: 'Ultimate Attack',
+                fruitStore: fruitStore
+            });
+            
+            // Create intense light particles
+            EffectsManager.createParticles(this, pos, {
+                count: 50,
+                color: this.colors.ultimate,
+                type: this.type,
+                lifetime: 2,
+                size: 0.4,
+                speed: 6
+            });
+            
             return true;
         });
     }
