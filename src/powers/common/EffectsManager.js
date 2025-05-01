@@ -2,6 +2,7 @@
  * Common effects manager for all fruits
  */
 import * as THREE from 'three';
+import { EffectsUpdateManager } from '../../core/EffectsUpdateManager.js';
 
 export class EffectsManager {
     /**
@@ -20,12 +21,16 @@ export class EffectsManager {
         const type = options.type || fruit.type;
         const color = options.color || this.getTypeColor(type);
         
-        for (let i = 0; i < count; i++) {
+        // Create limited number of particles to prevent performance issues
+        const actualCount = Math.min(count, 20); // Cap the max particles
+        
+        for (let i = 0; i < actualCount; i++) {
             const particle = fruit.createParticle(position, {
                 color,
                 size: options.size || Math.random() * 0.3 + 0.1,
-                lifetime: options.lifetime || Math.random() * 2 + 1,
+                lifetime: options.lifetime || Math.random() * 0.5 + 0.2, // Reduced lifetime
                 speed: options.speed || Math.random() * 2 + 1,
+                opacity: options.opacity || 0.4,
                 type
             });
             
@@ -49,12 +54,16 @@ export class EffectsManager {
         // Add status effect to entity
         const effect = {
             type: options.type || fruit.type,
-            duration: options.duration || 3,
-            remainingTime: options.duration || 3,
+            duration: options.duration || 1,
+            remainingTime: options.duration || 1,
             tickDamage: options.tickDamage || 0,
             slowFactor: options.slowFactor || 1,
             source: options.source || 'player'
         };
+        
+        // Set a maximum duration for any status effect to ensure temporariness
+        effect.duration = Math.min(effect.duration, 2); // Cap at 2 seconds max (reduced from 5)
+        effect.remainingTime = effect.duration;
         
         // Store effects on entity
         if (!entity.userData.statusEffects) {
@@ -115,5 +124,13 @@ export class EffectsManager {
             default:
                 return new THREE.SphereGeometry(0.5, 8, 8);
         }
+    }
+    
+    /**
+     * Clean up all active effects
+     * @param {Object} engine - Game engine instance
+     */
+    static cleanupAllEffects(engine) {
+        EffectsUpdateManager.cleanupAllEffects(engine);
     }
 } 

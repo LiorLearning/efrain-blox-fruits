@@ -23,7 +23,8 @@ export class AttackImplementations {
             type: options.type || fruit.type,
             geometry: options.geometry,
             material: options.material,
-            lifetime: options.lifetime || 2
+            lifetime: options.lifetime || 1,
+            opacity: options.opacity || 0.3
         });
         
         // Check for enemies in range if immediate damage is requested
@@ -54,8 +55,8 @@ export class AttackImplementations {
             color: options.color || 0xffffff,
             radius: options.radius || 5,
             damage: fruitStore.getFruit(fruit.name).damageValues[attackName],
-            lifetime: options.lifetime || 3,
-            opacity: options.opacity || 0.7,
+            lifetime: options.lifetime || 1,
+            opacity: options.opacity || 0.3,
             type: options.type || fruit.type
         });
         
@@ -85,8 +86,8 @@ export class AttackImplementations {
             color: options.color || 0xffffff,
             radius: options.radius || 2,
             damage: 0, // No damage for buff
-            lifetime: options.duration || 5,
-            opacity: options.opacity || 0.5,
+            lifetime: options.duration || 1,
+            opacity: options.opacity || 0.3,
             type: options.type || fruit.type
         });
         

@@ -56,12 +56,12 @@ export class MagmaFruit extends Fruit {
                 immediateRange: attackSettings.range
             });
             
-            // Create magma particles
+            // Create magma particles with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 8,
+                count: 5, // Reduced from 8
                 color: this.colors.primary,
                 type: this.type,
-                lifetime: 1.5,
+                lifetime: 1, // Reduced from 1.5
                 size: 0.35,
                 speed: 2
             });
@@ -97,12 +97,12 @@ export class MagmaFruit extends Fruit {
                 fruitStore: fruitStore
             });
             
-            // Create magma particles
+            // Create magma particles with reduced count and lifetime
             EffectsManager.createParticles(this, fieldPosition, {
-                count: 20,
+                count: 15, // Reduced from 20
                 color: this.colors.secondary,
                 type: this.type,
-                lifetime: 2,
+                lifetime: 1.5, // Reduced from 2
                 size: 0.4,
                 speed: 1.5
             });
@@ -131,18 +131,18 @@ export class MagmaFruit extends Fruit {
                 fruitStore: fruitStore
             });
             
-            // Create intense magma particles erupting upward
+            // Create intense magma particles erupting upward with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 35,
+                count: 25, // Reduced from 35
                 color: this.colors.ultimate,
                 type: this.type,
-                lifetime: 3,
+                lifetime: 2, // Reduced from 3
                 size: 0.5,
                 speed: 4
             });
             
-            // Create secondary eruption points
-            for (let i = 0; i < 5; i++) {
+            // Create secondary eruption points with fewer points
+            for (let i = 0; i < 3; i++) { // Reduced from 5
                 const angle = Math.random() * Math.PI * 2;
                 const distance = Math.random() * (attackSettings.radius * 0.7);
                 
@@ -155,14 +155,14 @@ export class MagmaFruit extends Fruit {
                 // Delayed secondary eruptions
                 setTimeout(() => {
                     EffectsManager.createParticles(this, eruptionPos, {
-                        count: 15,
+                        count: 10, // Reduced from 15
                         color: this.colors.secondary,
                         type: this.type,
-                        lifetime: 2,
+                        lifetime: 1.5, // Reduced from 2
                         size: 0.4,
                         speed: 3
                     });
-                }, i * 300); // Staggered timing
+                }, i * 200); // Reduced delay for faster completion
             }
             
             return true;

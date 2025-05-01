@@ -22,18 +22,18 @@ export const fruitConfigurations = {
                 name: 'Fireball',
                 range: 3,
                 speed: 15,
-                lifetime: 2
+                lifetime: 1.5
             },
             'Special Attack': {
                 name: 'Flame Wave',
                 radius: 5,
-                lifetime: 2,
+                lifetime: 1.5,
                 opacity: 0.7
             },
             'Ultimate Attack': {
                 name: 'Inferno',
                 radius: 8,
-                lifetime: 5,
+                lifetime: 3,
                 opacity: 0.8
             }
         }
@@ -58,18 +58,18 @@ export const fruitConfigurations = {
                 name: 'Ice Spike',
                 range: 3,
                 speed: 12,
-                lifetime: 2
+                lifetime: 1.5
             },
             'Special Attack': {
                 name: 'Ice Wall',
                 radius: 4,
-                lifetime: 3,
+                lifetime: 2,
                 opacity: 0.5
             },
             'Ultimate Attack': {
                 name: 'Blizzard',
                 radius: 8,
-                lifetime: 4,
+                lifetime: 2.5,
                 opacity: 0.6
             }
         }
@@ -94,18 +94,18 @@ export const fruitConfigurations = {
                 name: 'Bomb Toss',
                 range: 4,
                 speed: 10,
-                lifetime: 1.5
+                lifetime: 1
             },
             'Special Attack': {
                 name: 'Mine Field',
                 radius: 6,
-                lifetime: 5,
+                lifetime: 3,
                 opacity: 0.6
             },
             'Ultimate Attack': {
                 name: 'Mega Explosion',
                 radius: 10,
-                lifetime: 3,
+                lifetime: 2,
                 opacity: 0.9
             }
         }
@@ -130,7 +130,7 @@ export const fruitConfigurations = {
                 name: 'Light Beam',
                 range: 5,
                 speed: 20,
-                lifetime: 1
+                lifetime: 0.8
             },
             'Special Attack': {
                 name: 'Flash Step',
@@ -141,7 +141,7 @@ export const fruitConfigurations = {
             'Ultimate Attack': {
                 name: 'Solar Flare',
                 radius: 12,
-                lifetime: 2,
+                lifetime: 1.5,
                 opacity: 0.8
             }
         }
@@ -167,18 +167,18 @@ export const fruitConfigurations = {
                 name: 'Magma Ball',
                 range: 3,
                 speed: 12,
-                lifetime: 3
+                lifetime: 2
             },
             'Special Attack': {
                 name: 'Lava Slam',
                 radius: 6,
-                lifetime: 4,
+                lifetime: 2.5,
                 opacity: 0.7
             },
             'Ultimate Attack': {
                 name: 'Volcanic Eruption',
                 radius: 10,
-                lifetime: 6,
+                lifetime: 3,
                 opacity: 0.8
             }
         }

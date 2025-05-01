@@ -4,6 +4,7 @@
 import { BaseState } from './BaseState.js';
 import * as THREE from 'three';
 import audioManager from '../lib/AudioManager.js';
+import { EffectsUpdateManager } from '../core/EffectsUpdateManager.js';
 
 export class MenuState extends BaseState {
     constructor(engine) {
@@ -286,6 +287,9 @@ export class MenuState extends BaseState {
             // Handle input
             this.handleInput();
             
+            // Update all effects
+            EffectsUpdateManager.updateEffects(this.engine, deltaTime);
+            
             // Animate clouds or other elements
             if (this.engine.renderer && this.engine.renderer.scene) {
                 this.engine.renderer.scene.traverse((object) => {
@@ -321,7 +325,10 @@ export class MenuState extends BaseState {
     exit() {
         super.exit();
         
-        // Remove UI
+        // Clean up effects
+        EffectsUpdateManager.cleanupAllEffects(this.engine);
+        
+        // Remove UI elements
         this.removeUI();
     }
     

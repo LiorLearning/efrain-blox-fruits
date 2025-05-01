@@ -124,6 +124,7 @@ export class BombFruit extends Fruit {
             const radius = attackSettings.radius;
             
             // Set delays for secondary explosions to create a wave effect
+            const scene = this.engine.renderer.scene;
             for (let i = 0; i < explosionCount; i++) {
                 const angle = (i / explosionCount) * Math.PI * 2;
                 const expPos = new THREE.Vector3(
@@ -178,7 +179,7 @@ export class BombFruit extends Fruit {
                 color: this.colors.secondary,
                 radius: 0.5,
                 damage: fruitStore.getFruit(this.name).damageValues['Special Attack'] * 0.7,
-                lifetime: 10,
+                lifetime: 4, // Reduced from 10 to 4 seconds
                 opacity: 0.4,
                 type: this.type
             });
@@ -187,7 +188,7 @@ export class BombFruit extends Fruit {
             if (mineIndicator) {
                 mineIndicator.userData.isMine = true;
                 mineIndicator.userData.armed = false;
-                mineIndicator.userData.armingTime = 1; // Arm after 1 second
+                mineIndicator.userData.armingTime = 0.5; // Arm faster (was 1 second)
                 
                 // Override update logic to include mine behavior
                 const originalUpdate = mineIndicator.userData.update;

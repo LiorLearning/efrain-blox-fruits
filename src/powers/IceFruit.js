@@ -79,12 +79,12 @@ export class IceFruit extends Fruit {
                 fruitStore: fruitStore
             });
             
-            // Create ice particles
+            // Create ice particles with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 10,
+                count: 8, // Reduced from 10
                 color: this.colors.secondary,
                 type: this.type,
-                lifetime: 1.2,
+                lifetime: 0.8, // Reduced from 1.2
                 size: 0.25,
                 speed: 2
             });
@@ -113,12 +113,12 @@ export class IceFruit extends Fruit {
                 fruitStore: fruitStore
             });
             
-            // Create ice particles
+            // Create ice particles with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 25,
+                count: 18, // Reduced from 25
                 color: this.colors.ultimate,
                 type: this.type,
-                lifetime: 2,
+                lifetime: 1.5, // Reduced from 2
                 size: 0.3,
                 speed: 3.5
             });

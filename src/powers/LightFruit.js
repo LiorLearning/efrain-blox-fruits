@@ -55,12 +55,12 @@ export class LightFruit extends Fruit {
                 immediateRange: attackSettings.range
             });
             
-            // Create light particles
+            // Create light particles with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 12,
+                count: 8, // Reduced from 12
                 color: this.colors.primary,
                 type: this.type,
-                lifetime: 1,
+                lifetime: 0.7, // Reduced from 1
                 size: 0.2,
                 speed: 4
             });
@@ -105,12 +105,12 @@ export class LightFruit extends Fruit {
                 }
             });
             
-            // Create light particles at both origin and destination
+            // Create light particles at origin with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 20,
+                count: 15, // Reduced from 20
                 color: this.colors.secondary,
                 type: this.type,
-                lifetime: 0.5,
+                lifetime: 0.3, // Reduced from 0.5
                 size: 0.3,
                 speed: 3
             });
@@ -139,12 +139,12 @@ export class LightFruit extends Fruit {
                 fruitStore: fruitStore
             });
             
-            // Create intense light particles
+            // Create intense light particles with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 50,
+                count: 30, // Reduced from 50
                 color: this.colors.ultimate,
                 type: this.type,
-                lifetime: 2,
+                lifetime: 1.2, // Reduced from 2
                 size: 0.4,
                 speed: 6
             });

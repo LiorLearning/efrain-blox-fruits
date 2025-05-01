@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import fruitStore from '../lib/FruitStore.js';
 import { AttackImplementations } from './common/AttackImplementations.js';
 import { EffectsManager } from './common/EffectsManager.js';
+import { EffectsUpdateManager } from '../core/EffectsUpdateManager.js';
 
 export class Fruit {
     constructor(engine, options = {}) {
@@ -31,6 +32,12 @@ export class Fruit {
         // Audio setup
         this.audioListener = null;
         this._setupAudio();
+        
+        // Clean up any existing effects when a new fruit is created
+        if (engine?.effectsToUpdate?.length > 0) {
+            // Use the EffectsUpdateManager to clean up
+            EffectsUpdateManager.cleanupAllEffects(engine);
+        }
     }
     
     /**
@@ -204,7 +211,9 @@ export class Fruit {
         // Add visual representation
         const geometry = options.geometry || EffectsManager.getTypeGeometry(options.type || this.type);
         const material = options.material || new THREE.MeshBasicMaterial({ 
-            color: options.color || EffectsManager.getTypeColor(options.type || this.type)
+            color: options.color || EffectsManager.getTypeColor(options.type || this.type),
+            transparent: true,
+            opacity: options.opacity || 0.3
         });
         
         const mesh = new THREE.Mesh(geometry, material);
@@ -218,7 +227,7 @@ export class Fruit {
             direction: direction.clone().normalize(),
             speed: options.speed || 10,
             damage: options.damage || this.power,
-            lifetime: options.lifetime || 2, // seconds
+            lifetime: options.lifetime || 1, // reduced from 2 seconds to 1 second
             currentLifetime: 0,
             type: options.type || this.type,
             source: options.source || 'player',
@@ -268,7 +277,7 @@ export class Fruit {
         const material = new THREE.MeshBasicMaterial({
             color: options.color || EffectsManager.getTypeColor(options.type || this.type),
             transparent: true,
-            opacity: options.opacity || 0.5
+            opacity: options.opacity || 0.3
         });
         
         const mesh = new THREE.Mesh(geometry, material);
@@ -281,7 +290,7 @@ export class Fruit {
         areaEffectGroup.userData = {
             radius: options.radius || 5,
             damage: options.damage || this.power,
-            lifetime: options.lifetime || 3, // seconds
+            lifetime: options.lifetime || 1, // reduced from 3 seconds to 1 second
             currentLifetime: 0,
             type: options.type || this.type,
             source: options.source || 'player',
@@ -293,7 +302,7 @@ export class Fruit {
                 const remainingLifePercent = 1 - (this.userData.currentLifetime / this.userData.lifetime);
                 const mesh = this.children[0];
                 if (mesh && mesh.material) {
-                    mesh.material.opacity = (options.opacity || 0.5) * remainingLifePercent;
+                    mesh.material.opacity = (options.opacity || 0.3) * remainingLifePercent;
                 }
                 
                 // Apply damage to enemies in range
@@ -336,7 +345,7 @@ export class Fruit {
         const material = options.material || new THREE.MeshBasicMaterial({ 
             color: options.color || EffectsManager.getTypeColor(options.type || this.type),
             transparent: true,
-            opacity: options.opacity || 0.8
+            opacity: options.opacity || 0.4
         });
         
         const mesh = new THREE.Mesh(geometry, material);
@@ -364,7 +373,7 @@ export class Fruit {
         particleGroup.userData = {
             direction: direction,
             speed: options.speed || 2,
-            lifetime: options.lifetime || 1, // seconds
+            lifetime: options.lifetime || 0.5, // reduced from 1 second to 0.5 seconds
             currentLifetime: 0,
             type: options.type || this.type,
             update: function(deltaTime) {
@@ -380,7 +389,7 @@ export class Fruit {
                 const remainingLifePercent = 1 - (this.userData.currentLifetime / this.userData.lifetime);
                 const mesh = this.children[0];
                 if (mesh && mesh.material) {
-                    mesh.material.opacity = (options.opacity || 0.8) * remainingLifePercent;
+                    mesh.material.opacity = (options.opacity || 0.4) * remainingLifePercent;
                 }
                 
                 // Destroy if lifetime is exceeded
@@ -484,29 +493,36 @@ export class Fruit {
             case 'magma':
                 return {
                     type: damageType,
-                    duration: 3,
+                    duration: 1,
                     tickDamage: damage * 0.1
                 };
             case 'ice':
                 return {
                     type: damageType,
-                    duration: 2,
+                    duration: 1,
                     slowFactor: 0.5
                 };
             case 'bomb':
                 return {
                     type: damageType,
-                    duration: 1,
+                    duration: 0.5,
                     knockback: 5
                 };
             case 'light':
                 return {
                     type: damageType,
-                    duration: 2,
+                    duration: 1,
                     blindEffect: true
                 };
             default:
                 return null;
         }
+    }
+    
+    /**
+     * Clean up all effects created by this fruit
+     */
+    _cleanupEffects() {
+        EffectsUpdateManager.cleanupAllEffects(this.engine);
     }
 }

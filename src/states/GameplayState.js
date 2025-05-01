@@ -8,6 +8,7 @@ import { MiniBoss } from '../entities/MiniBoss.js';
 import * as THREE from 'three';
 import fruitStore from '../lib/FruitStore.js';
 import audioManager from '../lib/AudioManager.js';
+import { EffectsUpdateManager } from '../core/EffectsUpdateManager.js';
 
 export class GameplayState extends BaseState {
     constructor(engine) {
@@ -620,6 +621,9 @@ export class GameplayState extends BaseState {
             this.boss.update(deltaTime);
         }
         
+        // Update all effects
+        EffectsUpdateManager.updateEffects(this.engine, deltaTime);
+        
         // Update camera to follow player - less frequent updates
         this.updateCamera();
         
@@ -773,6 +777,9 @@ export class GameplayState extends BaseState {
             this.boss.destroy();
             this.boss = null;
         }
+        
+        // Clean up all effects
+        EffectsUpdateManager.cleanupAllEffects(this.engine);
         
         // Re-enable orbit controls if they exist
         if (this.engine.renderer.controls) {

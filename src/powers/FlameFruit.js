@@ -79,12 +79,12 @@ export class FlameFruit extends Fruit {
                 fruitStore: fruitStore
             });
             
-            // Create flame particles
+            // Create flame particles with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 15,
+                count: 10, // Reduced from 15
                 color: this.colors.secondary,
                 type: this.type,
-                lifetime: 1.5,
+                lifetime: 1, // Reduced from 1.5
                 size: 0.3,
                 speed: 3
             });
@@ -113,12 +113,12 @@ export class FlameFruit extends Fruit {
                 fruitStore: fruitStore
             });
             
-            // Create flame particles
+            // Create flame particles with reduced count and lifetime
             EffectsManager.createParticles(this, pos, {
-                count: 30,
+                count: 20, // Reduced from 30
                 color: this.colors.ultimate,
                 type: this.type,
-                lifetime: 3,
+                lifetime: 2, // Reduced from 3
                 size: 0.4,
                 speed: 4
             });
