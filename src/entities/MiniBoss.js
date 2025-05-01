@@ -170,8 +170,8 @@ export class MiniBoss extends Entity {
             });
             
             const bossSprite = new THREE.Sprite(material);
-            bossSprite.scale.set(5, 5, 1); // Larger size for boss
-            bossSprite.position.y = 2.5;   // Place at correct height
+            bossSprite.scale.set(6, 6, 1); // Larger size for boss
+            bossSprite.position.y = 3;   // Place at correct height
             bossGroup.add(bossSprite);
             
             // Add shadow caster

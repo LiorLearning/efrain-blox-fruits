@@ -95,8 +95,8 @@ export class Enemy extends Entity {
             });
             
             const enemySprite = new THREE.Sprite(material);
-            enemySprite.scale.set(3, 3, 1); // Adjust size
-            enemySprite.position.y = 1.5;   // Place at correct height
+            enemySprite.scale.set(4, 4, 1); // Increased size
+            enemySprite.position.y = 2;     // Raised height to match larger size
             enemyGroup.add(enemySprite);
             
             // Add shadow caster

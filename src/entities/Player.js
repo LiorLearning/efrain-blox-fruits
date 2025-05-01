@@ -253,8 +253,8 @@ export class Player extends Entity {
             });
             
             const playerSprite = new THREE.Sprite(material);
-            playerSprite.scale.set(3, 3, 1); // Adjust size
-            playerSprite.position.y = 1.5;   // Place at correct height
+            playerSprite.scale.set(4, 4, 1); // Adjust size
+            playerSprite.position.y = 2;   // Place at correct height
             playerGroup.add(playerSprite);
             
             // Add shadow caster
