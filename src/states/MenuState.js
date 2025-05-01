@@ -3,6 +3,7 @@
  */
 import { BaseState } from './BaseState.js';
 import * as THREE from 'three';
+import audioManager from '../lib/AudioManager.js';
 
 export class MenuState extends BaseState {
     constructor(engine) {
@@ -13,10 +14,6 @@ export class MenuState extends BaseState {
         
         // 3D scene elements for menu
         this.menuScene = null;
-        
-        // Background music
-        this.bgMusic = null;
-        this.audioListener = null;
     }
     
     /**
@@ -25,8 +22,10 @@ export class MenuState extends BaseState {
     init() {
         super.init();
         
-        // Initialize audio
-        this.setupAudio();
+        // Initialize audio manager
+        if (!audioManager.initialized && this.engine.renderer.camera) {
+            audioManager.init(this.engine.renderer.camera);
+        }
         
         try {
             // Create menu scene
@@ -35,60 +34,6 @@ export class MenuState extends BaseState {
             console.error("Error creating menu scene:", error);
             // Make sure we at least show the UI even if 3D fails
             this.createUI();
-        }
-    }
-    
-    /**
-     * Set up audio for the menu
-     */
-    setupAudio() {
-        // Create an audio listener
-        this.audioListener = new THREE.AudioListener();
-        this.engine.renderer.camera.add(this.audioListener);
-        
-        // Create a global Audio source for background music
-        this.bgMusic = new THREE.Audio(this.audioListener);
-    }
-    
-    /**
-     * Play background music
-     */
-    playBackgroundMusic() {
-        // Only play if not already playing and sound is enabled
-        if (this.bgMusic && !this.bgMusic.isPlaying && this.engine.soundEnabled) {
-            // Get the loaded audio buffer
-            const audioBuffer = this.engine.resources.getSound('bgMusic');
-            
-            if (audioBuffer) {
-                // Set the audio buffer to the audio source
-                this.bgMusic.setBuffer(audioBuffer);
-                // Set to loop
-                this.bgMusic.setLoop(true);
-                // Set volume
-                this.bgMusic.setVolume(0.5);
-                // Play the audio
-                this.bgMusic.play();
-            } else {
-                console.warn('Background music not loaded');
-            }
-        }
-    }
-    
-    /**
-     * Pause background music
-     */
-    pauseBackgroundMusic() {
-        if (this.bgMusic && this.bgMusic.isPlaying) {
-            this.bgMusic.pause();
-        }
-    }
-    
-    /**
-     * Stop background music
-     */
-    stopBackgroundMusic() {
-        if (this.bgMusic) {
-            this.bgMusic.stop();
         }
     }
     
@@ -154,9 +99,6 @@ export class MenuState extends BaseState {
         
         // Create and show UI
         this.createUI();
-        
-        // Start playing background music
-        this.playBackgroundMusic();
         
         try {
             // Set camera position for menu view if available
@@ -378,9 +320,6 @@ export class MenuState extends BaseState {
      */
     exit() {
         super.exit();
-        
-        // Stop the background music
-        this.stopBackgroundMusic();
         
         // Remove UI
         this.removeUI();

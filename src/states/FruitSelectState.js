@@ -4,6 +4,7 @@
 import { BaseState } from './BaseState.js';
 import * as THREE from 'three';
 import fruitStore from '../lib/FruitStore.js';
+import audioManager from '../lib/AudioManager.js';
 
 export class FruitSelectState extends BaseState {
     constructor(engine) {
@@ -24,6 +25,11 @@ export class FruitSelectState extends BaseState {
         
         // Set up scene for fruit display
         this.setupFruitScene();
+        
+        // Ensure audio manager is initialized
+        if (!audioManager.initialized && this.engine.renderer.camera) {
+            audioManager.init(this.engine.renderer.camera);
+        }
     }
     
     /**
@@ -318,6 +324,10 @@ export class FruitSelectState extends BaseState {
         const startButton = this.fruitSelectUI.querySelector('.start-button');
         startButton.addEventListener('click', () => {
             if (this.selectedFruits.length === this.maxSelections) {
+                // Start playing background music using the audio manager
+                const audioBuffer = this.engine.resources.getSound('bgMusic');
+                audioManager.playBackgroundMusic(audioBuffer);
+                
                 // Store selected fruits for gameplay
                 this.engine.playerFruits = this.selectedFruits;
                 

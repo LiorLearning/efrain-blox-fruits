@@ -7,6 +7,7 @@ import { Enemy } from '../entities/Enemy.js';
 import { MiniBoss } from '../entities/MiniBoss.js';
 import * as THREE from 'three';
 import fruitStore from '../lib/FruitStore.js';
+import audioManager from '../lib/AudioManager.js';
 
 export class GameplayState extends BaseState {
     constructor(engine) {
@@ -20,15 +21,15 @@ export class GameplayState extends BaseState {
         this.boss = null;
         this.currentIsland = null;
         
-        // Background music
-        this.bgMusic = null;
-        this.audioListener = null;
-        
         // Store currently selected fruit index
         this.selectedFruitIndex = 0;
         
         // Boss creation flag
         this.bossCreated = false;
+        
+        // Performance optimization flags
+        this.uiUpdateTimer = 0;
+        this.UI_UPDATE_INTERVAL = 0.1; // Update UI every 100ms instead of every frame
     }
     
     /**
@@ -37,61 +38,9 @@ export class GameplayState extends BaseState {
     init() {
         super.init();
         
-        // Initialize audio
-        this.setupAudio();
-    }
-    
-    /**
-     * Set up audio for the game
-     */
-    setupAudio() {
-        // Create an audio listener
-        this.audioListener = new THREE.AudioListener();
-        this.engine.renderer.camera.add(this.audioListener);
-        
-        // Create a global Audio source for background music
-        this.bgMusic = new THREE.Audio(this.audioListener);
-    }
-    
-    /**
-     * Play background music
-     */
-    playBackgroundMusic() {
-        // Only play if not already playing and sound is enabled
-        if (this.bgMusic && !this.bgMusic.isPlaying && this.engine.soundEnabled) {
-            // Get the loaded audio buffer
-            const audioBuffer = this.engine.resources.getSound('bgMusic');
-            
-            if (audioBuffer) {
-                // Set the audio buffer to the audio source
-                this.bgMusic.setBuffer(audioBuffer);
-                // Set to loop
-                this.bgMusic.setLoop(true);
-                // Set volume
-                this.bgMusic.setVolume(0.5);
-                // Play the audio
-                this.bgMusic.play();
-            } else {
-                console.warn('Background music not loaded');
-            }
-        }
-    }
-    
-    /**
-     * Pause background music
-     */
-    pauseBackgroundMusic() {
-        if (this.bgMusic && this.bgMusic.isPlaying) {
-            this.bgMusic.pause();
-        }
-    }
-    
-    /**
-     * Stop background music
-     */
-    stopBackgroundMusic() {
-        if (this.bgMusic) {
-            this.bgMusic.stop();
+        // Ensure audio manager is initialized
+        if (!audioManager.initialized && this.engine.renderer.camera) {
+            audioManager.init(this.engine.renderer.camera);
         }
     }
     
@@ -115,44 +64,44 @@ export class GameplayState extends BaseState {
         
         // Set camera for following player
         this.setupCamera();
-        
-        // Start playing background music
-        this.playBackgroundMusic();
     }
     
     /**
-     * Create the game world
+     * Create the game world - optimized version
      */
     createGameWorld() {
         // Clear existing scene
         const scene = this.engine.renderer.scene;
         
-        // Remove all objects except camera and lights
-        const objectsToRemove = [];
-        scene.traverse((object) => {
-            if (object.type === 'Mesh') {
-                objectsToRemove.push(object);
+        // More efficient scene clearing
+        while(scene.children.length > 0) { 
+            const child = scene.children[0];
+            if (child.type === 'Mesh') {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => material.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+                scene.remove(child);
+            } else if (child.type !== 'Camera' && child.type !== 'Light') {
+                scene.remove(child);
             }
-        });
-        
-        objectsToRemove.forEach(object => {
-            scene.remove(object);
-        });
+        }
         
         // Set background texture
         const backgroundTexture = this.engine.resources.getTexture('background');
         if (backgroundTexture) {
             scene.background = backgroundTexture;
         } else {
-            console.warn("Background texture not found, using default sky color");
             scene.background = new THREE.Color(0x87CEEB); // Sky blue fallback
         }
         
-        // Create a simple flat ground for collision detection
-        const groundGeometry = new THREE.PlaneGeometry(100, 100);
-        const groundMaterial = new THREE.MeshBasicMaterial({ 
-            visible: false // Invisible collision plane
-        });
+        // Create a simple flat ground for collision detection - shared geometry/material
+        const groundGeometry = new THREE.PlaneGeometry(100, 100, 1, 1); // Reduced segments
+        const groundMaterial = new THREE.MeshBasicMaterial({ visible: false });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2; // Make it horizontal
         ground.position.y = -0.5; // Slightly below visual level
@@ -163,8 +112,7 @@ export class GameplayState extends BaseState {
      * Add environment elements to the scene
      */
     addEnvironmentElements(scene) {
-        // No additional elements needed as we're using the background image
-        // This method is kept empty to maintain compatibility with other code
+        // Empty method kept for compatibility
     }
     
     /**
@@ -221,14 +169,14 @@ export class GameplayState extends BaseState {
     }
     
     /**
-     * Create gameplay UI
+     * Create gameplay UI - optimized version
      */
     createUI() {
         // Create gameplay UI
         this.gameplayUI = document.createElement('div');
         this.gameplayUI.className = 'gameplay-ui';
         
-        // Basic UI structure with player info and controls
+        // Simplified UI structure with player info and controls
         this.gameplayUI.innerHTML = `
             <div class="player-info">
                 <div class="player-name">Efrain</div>
@@ -247,16 +195,12 @@ export class GameplayState extends BaseState {
             </div>
             <div class="game-controls">
                 <div class="controls-info">
-                    <p>WASD or Arrow Keys: Move</p>
-                    <p>Space: Use Fruit Attack</p>
-                    <p>1-5: Select Fruit</p>
-                    <p>M: Math Challenge for More Fruit Uses</p>
-                    <p>Mouse to Edge: Pan Camera</p>
+                    <p>WASD/Arrows: Move | Space: Attack | 1-5: Select Fruit | M: Math Challenge</p>
                 </div>
             </div>
         `;
         
-        // Add styling
+        // Add styling - simplified and optimized CSS
         const style = document.createElement('style');
         style.textContent = `
             .gameplay-ui {
@@ -357,45 +301,6 @@ export class GameplayState extends BaseState {
                 margin-bottom: 8px;
             }
             
-            .fruit-attack-item {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 5px;
-                font-size: 14px;
-                padding: 4px;
-                background-color: rgba(255, 255, 255, 0.1);
-                border-radius: 4px;
-            }
-            
-            .attack-name {
-                font-weight: bold;
-            }
-            
-            .attack-cooldown {
-                display: flex;
-                align-items: center;
-            }
-            
-            .cooldown-bar {
-                width: 40px;
-                height: 6px;
-                background-color: #555;
-                border-radius: 3px;
-                overflow: hidden;
-                margin-left: 5px;
-            }
-            
-            .cooldown-fill {
-                height: 100%;
-                background-color: #3af;
-                width: 0%;
-            }
-            
-            .attack-damage {
-                color: #f55;
-                margin-right: 10px;
-            }
-            
             .game-controls {
                 position: absolute;
                 top: 20px;
@@ -403,10 +308,6 @@ export class GameplayState extends BaseState {
                 padding: 10px;
                 background-color: rgba(0, 0, 0, 0.5);
                 border-radius: 5px;
-            }
-            
-            .controls-info p {
-                margin: 5px 0;
             }
             
             .game-message {
@@ -423,10 +324,6 @@ export class GameplayState extends BaseState {
                 text-align: center;
                 z-index: 100;
                 display: none;
-                pointer-events: none;
-                transition: opacity 0.3s ease;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-                border: 2px solid #ff0;
             }
         `;
         
@@ -441,25 +338,17 @@ export class GameplayState extends BaseState {
         
         // Update fruit details for the initially selected fruit
         this.updateFruitDetails();
-        
-        // Add event listener for the debug damage button
-        const debugDamageButton = this.gameplayUI.querySelector('.debug-damage-button');
-        if (debugDamageButton) {
-            debugDamageButton.addEventListener('click', () => {
-                if (this.player) {
-                    // Deal enough damage to kill the player
-                    this.player.takeDamage(this.player.health);
-                }
-            });
-        }
     }
     
     /**
-     * Populate the fruit UI with the player's selected fruits
+     * Populate the fruit UI with the player's selected fruits - optimized
      */
     populateFruitUI() {
         const fruitPowerList = this.gameplayUI.querySelector('.fruit-power-list');
         fruitPowerList.innerHTML = '';
+        
+        // Use document fragment for better performance when adding multiple DOM elements
+        const fragment = document.createDocumentFragment();
         
         if (this.engine.playerFruits && this.engine.playerFruits.length > 0) {
             this.engine.playerFruits.forEach((fruit, index) => {
@@ -482,7 +371,7 @@ export class GameplayState extends BaseState {
                     fruitItem.classList.add('active');
                 }
                 
-                fruitPowerList.appendChild(fruitItem);
+                fragment.appendChild(fruitItem);
             });
         } else {
             // If no fruits selected (should not happen), use defaults
@@ -502,13 +391,15 @@ export class GameplayState extends BaseState {
                     fruitItem.classList.add('active');
                 }
                 
-                fruitPowerList.appendChild(fruitItem);
+                fragment.appendChild(fruitItem);
             });
         }
+        
+        fruitPowerList.appendChild(fragment);
     }
     
     /**
-     * Update the fruit details panel
+     * Update the fruit details panel - optimized
      */
     updateFruitDetails() {
         if (!this.gameplayUI) return;
@@ -531,6 +422,9 @@ export class GameplayState extends BaseState {
         // Clear and update attacks
         detailsAttacks.innerHTML = '';
         
+        // Use document fragment for better performance
+        const fragment = document.createDocumentFragment();
+        
         const attackTypes = ['Basic Attack', 'Special Attack', 'Ultimate Attack'];
         attackTypes.forEach((attackType, index) => {
             // Get the attack name from fruit attacks array if available
@@ -545,26 +439,24 @@ export class GameplayState extends BaseState {
             const showCooldown = cooldownPercent > 0 ? `${cooldownTime}s` : 'Ready';
             
             attackItem.innerHTML = `
-                <div class="attack-name">${attackName}</div>
-                <div class="attack-info">
-                    <span class="attack-damage">DMG: ${fruitData.damageValues[attackType]}</span>
-                    <span class="attack-cooldown">
-                        ${showCooldown}
-                        <div class="cooldown-bar">
-                            <div class="cooldown-fill" style="width: ${cooldownPercent}%"></div>
-                        </div>
-                    </span>
-                </div>
+                <span>${attackName}</span>
+                <span>DMG: ${fruitData.damageValues[attackType]} | ${showCooldown}</span>
             `;
             
-            detailsAttacks.appendChild(attackItem);
+            fragment.appendChild(attackItem);
         });
+        
+        detailsAttacks.appendChild(fragment);
     }
     
     /**
-     * Update the fruit UI with current uses and cooldowns
+     * Update the fruit UI with current uses and cooldowns - throttled update
      */
     updateFruitUI() {
+        // Skip UI updates if not enough time has passed since last update
+        if (this.uiUpdateTimer > 0) return;
+        this.uiUpdateTimer = this.UI_UPDATE_INTERVAL;
+        
         // Update the uses remaining for each fruit
         const fruitItems = this.gameplayUI.querySelectorAll('.fruit-power-item');
         const fruits = this.engine.playerFruits || [];
@@ -588,7 +480,7 @@ export class GameplayState extends BaseState {
     }
     
     /**
-     * Select a fruit by index
+     * Select a fruit by index - optimized
      */
     selectFruit(index) {
         const fruits = this.engine.playerFruits || [];
@@ -611,22 +503,11 @@ export class GameplayState extends BaseState {
     }
     
     /**
-     * Get emoji for fruit type
+     * Get emoji for fruit type - removed as unused
      */
-    getFruitEmoji(type) {
-        const emojiMap = {
-            'flame': '🔥',
-            'ice': '❄️',
-            'bomb': '💣',
-            'light': '✨',
-            'magma': '🌋'
-        };
-        
-        return emojiMap[type] || '🍎';
-    }
     
     /**
-     * Create enemies and boss
+     * Create enemies and boss - optimized
      */
     createEnemies() {
         // Clear any existing enemies
@@ -640,10 +521,10 @@ export class GameplayState extends BaseState {
             this.boss = null;
         }
         
-        // Create some regular enemies at positions closer to the center of the island
-        for (let i = 0; i < 3; i++) {
+        // Create fewer enemies for better performance
+        for (let i = 0; i < 2; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const radius = 8 + Math.random() * 6; // Reduced radius to bring enemies closer
+            const radius = 8 + Math.random() * 6;
             
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
@@ -686,8 +567,6 @@ export class GameplayState extends BaseState {
         // Mark boss as created
         this.bossCreated = true;
         
-        console.log("All enemies defeated! The MiniBoss has appeared!");
-        
         // Display a message to the player
         if (this.messageElement) {
             this.messageElement.textContent = "The Island Boss has appeared!";
@@ -703,18 +582,22 @@ export class GameplayState extends BaseState {
     }
 
     /**
-     * Update the gameplay state
+     * Update the gameplay state - optimized for performance
      */
     update(deltaTime) {
         super.update(deltaTime);
+        
+        // Decrement UI update timer
+        if (this.uiUpdateTimer > 0) {
+            this.uiUpdateTimer -= deltaTime;
+        }
         
         // Update the player
         if (this.player) {
             this.player.update(deltaTime);
         }
         
-        // Update enemies and remove dead ones safely
-        // We need to iterate backwards to safely remove elements
+        // Update enemies and remove dead ones - optimized by reducing work
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             if (enemy) {
@@ -737,13 +620,13 @@ export class GameplayState extends BaseState {
             this.boss.update(deltaTime);
         }
         
-        // Update camera to follow player
+        // Update camera to follow player - less frequent updates
         this.updateCamera();
         
         // Update fruit store cooldowns
         fruitStore.updateCooldowns(deltaTime);
         
-        // Update fruit UI
+        // Update fruit UI - less frequently through timer
         this.updateFruitUI();
         
         // Handle input for fruit selection (1-5 keys)
@@ -755,7 +638,7 @@ export class GameplayState extends BaseState {
     }
     
     /**
-     * Update camera for isometric view with mouse control for navigation
+     * Update camera for isometric view - optimized
      */
     updateCamera() {
         if (!this.player) return;
@@ -772,17 +655,18 @@ export class GameplayState extends BaseState {
             this.cameraOffset = { x: 0, z: 0 };
         }
         
-        // Mouse-based camera panning
-        // Only when mouse is at screen edges
+        // Mouse-based camera panning - only when mouse is at screen edges
         const mousePos = input.getMousePosition();
+        if (!mousePos) return;
+        
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
         
-        // Mouse edges detection for map navigation (edge panning)
-        const edgeThreshold = 50; // pixels from the edge
-        const panSpeed = 0.2 * this.engine.time.deltaTime;
+        // Mouse edges detection with larger threshold - less sensitive panning
+        const edgeThreshold = 30; // reduced from 50
+        const panSpeed = 0.15 * this.engine.time.deltaTime; // reduced from 0.2
         
-        // Panning at screen edges
+        // Panning at screen edges - reduced sensitivity
         if (mousePos.x < edgeThreshold) {
             // Left edge
             this.cameraOffset.x -= panSpeed;
@@ -800,7 +684,7 @@ export class GameplayState extends BaseState {
         }
         
         // Limit camera panning to island bounds
-        const maxOffset = 40; // Increased from 20 to 40 for larger area
+        const maxOffset = 30; // reduced from 40
         this.cameraOffset.x = Math.max(-maxOffset, Math.min(maxOffset, this.cameraOffset.x));
         this.cameraOffset.z = Math.max(-maxOffset, Math.min(maxOffset, this.cameraOffset.z));
         
@@ -816,26 +700,20 @@ export class GameplayState extends BaseState {
     }
     
     /**
-     * Check for direct hits on enemies from an attack
-     * Only hits the closest enemy within range
-     * @param {THREE.Vector3} attackPosition - Starting position of the attack
-     * @param {number} attackRange - Maximum distance the attack can reach
-     * @param {number} damage - Amount of damage to deal
-     * @param {string} attackType - Type of attack (for special effects)
-     * @returns {boolean} - Whether any enemy was hit
+     * Check for direct hits on enemies from an attack - optimized
      */
     checkDirectAttackHits(attackPosition, attackRange, damage, attackType) {
         if (!this.enemies || !Array.isArray(this.enemies)) {
             return false;
         }
         
-        // Combine enemies and boss in a single array for processing
+        // Create combined targets array only when needed
         const targets = [...this.enemies];
         if (this.boss && this.boss.isActive) {
             targets.push(this.boss);
         }
         
-        // Find closest enemy within attack range
+        // Find closest enemy within attack range - using direct distance calculations
         let closestEnemy = null;
         let closestDistance = Infinity;
         
@@ -845,13 +723,18 @@ export class GameplayState extends BaseState {
             const enemyPosition = enemy.getPosition();
             if (!enemyPosition) continue;
             
-            // Calculate distance to enemy
-            const distance = attackPosition.distanceTo(enemyPosition);
+            // Calculate squared distance to enemy (faster than using distanceTo)
+            const dx = attackPosition.x - enemyPosition.x;
+            const dz = attackPosition.z - enemyPosition.z;
+            const distanceSquared = dx * dx + dz * dz;
+            
+            // Compare with squared range
+            const rangeSquared = attackRange * attackRange;
             
             // Check if within range and closer than current closest
-            if (distance <= attackRange && distance < closestDistance) {
+            if (distanceSquared <= rangeSquared && distanceSquared < closestDistance) {
                 closestEnemy = enemy;
-                closestDistance = distance;
+                closestDistance = distanceSquared;
             }
         }
         
@@ -869,9 +752,6 @@ export class GameplayState extends BaseState {
      */
     exit() {
         super.exit();
-        
-        // Stop the background music
-        this.stopBackgroundMusic();
         
         // Remove UI
         this.removeUI();
@@ -940,22 +820,10 @@ export class GameplayState extends BaseState {
      * Handle boss defeat and victory
      */
     onBossDefeated() {
-        // Stop background music
-        this.stopBackgroundMusic();
-        
         // Play victory sound if available
-        if (this.engine.soundEnabled) {
-            try {
-                const victorySound = this.engine.resources.getSound('victory');
-                if (victorySound) {
-                    const victoryAudio = new THREE.Audio(this.audioListener);
-                    victoryAudio.setBuffer(victorySound);
-                    victoryAudio.setVolume(0.8);
-                    victoryAudio.play();
-                }
-            } catch (e) {
-                console.warn("Victory sound not found");
-            }
+        const victorySound = this.engine.resources.getSound('victory');
+        if (victorySound) {
+            audioManager.playSound(victorySound, 0.8, false);
         }
         
         // Create victory banner

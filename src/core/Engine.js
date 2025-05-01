@@ -10,6 +10,7 @@ import { LoadingState } from '../states/LoadingState.js';
 import { MenuState } from '../states/MenuState.js';
 import { FruitSelectState } from '../states/FruitSelectState.js';
 import { GameplayState } from '../states/GameplayState.js';
+import audioManager from '../lib/AudioManager.js';
 
 export class Engine {
     constructor(config) {
@@ -50,6 +51,11 @@ export class Engine {
         
         // Initialize renderer
         this.renderer.init();
+        
+        // Initialize audio manager
+        if (this.renderer.camera) {
+            audioManager.init(this.renderer.camera);
+        }
         
         // Handle window resize
         window.addEventListener('resize', () => this._onResize());
@@ -143,6 +149,9 @@ export class Engine {
     toggleSound() {
         this.soundEnabled = !this.soundEnabled;
         
+        // Update audio manager sound state
+        audioManager.setSoundEnabled(this.soundEnabled);
+        
         // Update the sound toggle button UI
         const soundToggle = document.getElementById('sound-toggle');
         if (soundToggle) {
@@ -154,20 +163,6 @@ export class Engine {
                 soundToggle.querySelector('i').className = 'fas fa-volume-xmark';
             }
         }
-        
-        // Toggle sound in current state
-        const currentState = this.stateManager.getCurrentStateInstance();
-        if (currentState && typeof currentState.bgMusic !== 'undefined') {
-            if (this.soundEnabled) {
-                if (typeof currentState.playBackgroundMusic === 'function') {
-                    currentState.playBackgroundMusic();
-                }
-            } else {
-                if (typeof currentState.stopBackgroundMusic === 'function') {
-                    currentState.stopBackgroundMusic();
-                }
-            }
-        }
     }
     
     /**
@@ -177,6 +172,9 @@ export class Engine {
         this.stop();
         this.input.destroy();
         this.renderer.destroy();
+        
+        // Stop any playing audio
+        audioManager.stopBackgroundMusic();
         
         // Remove event listeners
         window.removeEventListener('resize', this._onResize);
