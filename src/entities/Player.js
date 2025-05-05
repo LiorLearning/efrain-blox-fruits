@@ -687,21 +687,372 @@ export class Player extends Entity {
      * Create visual effect for basic attack
      */
     _createAttackEffect(position, direction, fruitType) {
-        // Method intentionally left empty to hide attack effects
+        // Get the color associated with the fruit type
+        const color = this._getFruitColor(fruitType);
+        
+        // Create a basic attack effect sphere
+        const geometry = new THREE.SphereGeometry(0.5, 8, 8);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: color,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        // Create the attack effect mesh
+        const attackEffect = new THREE.Mesh(geometry, material);
+        attackEffect.position.copy(position);
+        
+        // Add to scene
+        this.engine.renderer.scene.add(attackEffect);
+        
+        // Create a shockwave effect
+        const ringGeometry = new THREE.RingGeometry(0.1, 0.7, 16);
+        const ringMaterial = new THREE.MeshBasicMaterial({ 
+            color: color,
+            transparent: true, 
+            opacity: 0.7,
+            side: THREE.DoubleSide
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = Math.PI / 2; // Make it horizontal
+        ring.position.copy(position);
+        
+        // Add ring to scene
+        this.engine.renderer.scene.add(ring);
+        
+        // Animate both effects
+        const startTime = Date.now();
+        const duration = 400; // ms
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Scale effect
+            attackEffect.scale.set(1 + progress * 3, 1 + progress * 3, 1 + progress * 3);
+            attackEffect.material.opacity = 0.8 * (1 - progress);
+            
+            // Scale ring
+            ring.scale.set(1 + progress * 4, 1 + progress * 4, 1);
+            ring.material.opacity = 0.7 * (1 - progress);
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Remove effects when animation is complete
+                this.engine.renderer.scene.remove(attackEffect);
+                attackEffect.geometry.dispose();
+                attackEffect.material.dispose();
+                
+                this.engine.renderer.scene.remove(ring);
+                ring.geometry.dispose();
+                ring.material.dispose();
+            }
+        };
+        
+        // Start animation
+        animate();
+        
+        // Add particles for more visual impact
+        this._createAttackParticles(position, color);
     }
     
     /**
      * Create visual effect for special attack
      */
     _createSpecialAttackEffect(position, direction, fruitType) {
-        // Method intentionally left empty to hide attack effects
+        // Get the color associated with the fruit type
+        const color = this._getFruitColor(fruitType);
+        
+        // Create projectile (similar to enemy fruit projectile)
+        const geometry = new THREE.SphereGeometry(0.4, 8, 8);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: color,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const projectile = new THREE.Mesh(geometry, material);
+        projectile.position.copy(position);
+        
+        // Add to scene
+        this.engine.renderer.scene.add(projectile);
+        
+        // Calculate target position (further in attack direction)
+        const targetPos = new THREE.Vector3(
+            position.x + direction.x * 15,
+            position.y,
+            position.z + direction.z * 15
+        );
+        
+        // Animation variables
+        const startTime = Date.now();
+        const duration = 1000; // ms
+        const speed = 15; // units per second
+        
+        // Create trail effect
+        this._createProjectileTrail(projectile, color);
+        
+        // Animate projectile
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
+            
+            // Move projectile
+            projectile.position.x += direction.x * speed * (this.engine.time.deltaTime || 0.016);
+            projectile.position.y += direction.y * speed * (this.engine.time.deltaTime || 0.016);
+            projectile.position.z += direction.z * speed * (this.engine.time.deltaTime || 0.016);
+            
+            // Check if animation should end
+            if (progress >= 1) {
+                // Create impact effect at final position
+                this._createImpactEffect(projectile.position, color);
+                
+                // Remove projectile
+                this.engine.renderer.scene.remove(projectile);
+                projectile.geometry.dispose();
+                projectile.material.dispose();
+                return;
+            }
+            
+            // Continue animation
+            requestAnimationFrame(animate);
+        };
+        
+        // Start animation
+        animate();
+    }
+    
+    /**
+     * Create particles for attack effect
+     */
+    _createAttackParticles(position, color) {
+        const particles = [];
+        const particleCount = 12;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 6, 6),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.8
+                })
+            );
+            
+            // Random position around hit point
+            particle.position.set(
+                position.x + (Math.random() - 0.5) * 0.5,
+                position.y + (Math.random() - 0.5) * 0.5,
+                position.z + (Math.random() - 0.5) * 0.5
+            );
+            
+            // Random velocity in all directions
+            const angle = Math.random() * Math.PI * 2;
+            const elevation = Math.random() * Math.PI - Math.PI/2;
+            const speed = 0.05 + Math.random() * 0.1;
+            
+            particle.userData = {
+                velocity: {
+                    x: Math.cos(angle) * Math.cos(elevation) * speed,
+                    y: Math.sin(elevation) * speed,
+                    z: Math.sin(angle) * Math.cos(elevation) * speed
+                }
+            };
+            
+            // Add to scene
+            this.engine.renderer.scene.add(particle);
+            particles.push(particle);
+        }
+        
+        // Animate particles
+        const startTime = Date.now();
+        const duration = 600; // ms
+        
+        const animateParticles = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            particles.forEach(particle => {
+                // Move particle
+                particle.position.x += particle.userData.velocity.x;
+                particle.position.y += particle.userData.velocity.y;
+                particle.position.z += particle.userData.velocity.z;
+                
+                // Fade out
+                particle.material.opacity = 0.8 * (1 - progress);
+            });
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateParticles);
+            } else {
+                // Remove particles
+                particles.forEach(particle => {
+                    this.engine.renderer.scene.remove(particle);
+                    particle.geometry.dispose();
+                    particle.material.dispose();
+                });
+            }
+        };
+        
+        animateParticles();
+    }
+    
+    /**
+     * Create a trail effect for the projectile
+     */
+    _createProjectileTrail(projectile, color) {
+        // Create trail at regular intervals
+        const trailInterval = setInterval(() => {
+            if (!projectile || !this.engine.renderer.scene) {
+                clearInterval(trailInterval);
+                return;
+            }
+            
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 6, 6),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.6
+                })
+            );
+            
+            // Position at current projectile position
+            particle.position.copy(projectile.position);
+            
+            // Add to scene
+            this.engine.renderer.scene.add(particle);
+            
+            // Animate fade out
+            const startTime = Date.now();
+            const duration = 400; // ms
+            
+            const animateParticle = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                particle.material.opacity = 0.6 * (1 - progress);
+                particle.scale.multiplyScalar(0.98);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateParticle);
+                } else {
+                    this.engine.renderer.scene.remove(particle);
+                    particle.geometry.dispose();
+                    particle.material.dispose();
+                }
+            };
+            
+            animateParticle();
+        }, 50); // Create trail particle every 50ms
+        
+        // Clear interval after 2 seconds (safety)
+        setTimeout(() => clearInterval(trailInterval), 2000);
+    }
+    
+    /**
+     * Create impact effect at the end of projectile path
+     */
+    _createImpactEffect(position, color) {
+        // Create explosion particles
+        const particles = [];
+        const particleCount = 20;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 6, 6),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.8
+                })
+            );
+            
+            // Position at impact point
+            particle.position.copy(position);
+            
+            // Random velocity in all directions
+            const angle = Math.random() * Math.PI * 2;
+            const elevation = Math.random() * Math.PI;
+            const speed = 0.1 + Math.random() * 0.15;
+            
+            particle.userData = {
+                velocity: {
+                    x: Math.cos(angle) * Math.sin(elevation) * speed,
+                    y: Math.cos(elevation) * speed,
+                    z: Math.sin(angle) * Math.sin(elevation) * speed
+                }
+            };
+            
+            // Add to scene
+            this.engine.renderer.scene.add(particle);
+            particles.push(particle);
+        }
+        
+        // Create shockwave ring
+        const ringGeometry = new THREE.RingGeometry(0.2, 0.7, 16);
+        const ringMaterial = new THREE.MeshBasicMaterial({ 
+            color: color,
+            transparent: true, 
+            opacity: 0.7,
+            side: THREE.DoubleSide
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = Math.PI / 2; // Make it horizontal
+        ring.position.copy(position);
+        this.engine.renderer.scene.add(ring);
+        
+        // Animate particles and ring
+        const startTime = Date.now();
+        const duration = 800; // ms
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Update particles
+            particles.forEach(particle => {
+                // Move particle
+                particle.position.x += particle.userData.velocity.x;
+                particle.position.y += particle.userData.velocity.y;
+                particle.position.z += particle.userData.velocity.z;
+                
+                // Apply gravity
+                particle.userData.velocity.y -= 0.003;
+                
+                // Fade out
+                particle.material.opacity = 0.8 * (1 - progress);
+            });
+            
+            // Scale ring
+            ring.scale.set(1 + progress * 5, 1 + progress * 5, 1);
+            ring.material.opacity = 0.7 * (1 - progress);
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Remove particles and ring
+                particles.forEach(particle => {
+                    this.engine.renderer.scene.remove(particle);
+                    particle.geometry.dispose();
+                    particle.material.dispose();
+                });
+                
+                this.engine.renderer.scene.remove(ring);
+                ring.geometry.dispose();
+                ring.material.dispose();
+            }
+        };
+        
+        animate();
     }
     
     /**
      * Update any animations
      */
     _updateAnimations(deltaTime) {
-        // Implement animations if needed
+        // Handle any player animations if needed
     }
     
     /**

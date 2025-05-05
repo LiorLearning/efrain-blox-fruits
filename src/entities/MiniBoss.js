@@ -895,14 +895,19 @@ export class MiniBoss extends Entity {
         
         // Animate main projectile
         const startTime = Date.now();
-        const travelDistance = Math.min(10, targetPos.distanceTo(new THREE.Vector3(sourcePos.x, targetPos.y, sourcePos.z)) * 0.7);
+        // Calculate distance manually instead of using targetPos.distanceTo
+        // const distance = Math.sqrt(
+        //     Math.pow(targetPos.x - sourcePos.x, 2) + 
+        //     Math.pow(targetPos.z - sourcePos.z, 2)
+        // );
+        // const travelDistance = Math.min(10, distance * 0.7);
         const duration = 800; // ms - time to reach burst point
         const speed = 10; // units per second
         
         // Create the burst animation
         const animateMain = () => {
             const elapsed = Date.now() - startTime;
-            const progress = elapsed / duration;
+            const progress = Math.min(elapsed / duration, 1);
             
             // Move main projectile
             mainProjectile.position.x += direction.x * speed * (this.engine.time.deltaTime || 0.016);
@@ -1573,5 +1578,13 @@ export class MiniBoss extends Entity {
             this.bossSprite.scale.x = Math.abs(this.bossSprite.scale.x);
             this.facingDirection = 1;
         }
+    }
+    
+    /**
+     * Create attack effect at target position
+     */
+    _createAttackEffect(position) {
+        // Reuse the hit effect function with a default type (regular attack)
+        this._createHitEffect(position, 'default');
     }
 }
