@@ -747,7 +747,7 @@ export class GameplayState extends BaseState {
         }
         
         // Create 5 enemies 
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 3; i++) {
             const angle = Math.random() * Math.PI * 2;
             const radius = 8 + Math.random() * 6;
             
@@ -760,6 +760,75 @@ export class GameplayState extends BaseState {
             });
             
             enemy.setPosition(x, 0, z);
+            
+            // Visual indicator of enemy's fruit type (small floating icon above enemy)
+            if (enemy.fruit) {
+                const fruitIndicator = document.createElement('div');
+                fruitIndicator.className = 'enemy-fruit-indicator';
+                fruitIndicator.innerHTML = `
+                    <img src="models/fruits/${enemy.fruit.type.charAt(0).toUpperCase() + enemy.fruit.type.slice(1)}Fruit.png" 
+                         alt="${enemy.fruit.type}">
+                    <span class="fruit-type-label">${enemy.fruit.type}</span>
+                `;
+                this.uiContainer.appendChild(fruitIndicator);
+                
+                // Store reference to update position
+                enemy.fruitIndicator = fruitIndicator;
+                
+                // Add styling for the fruit indicator
+                if (!document.getElementById('enemy-fruit-indicator-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'enemy-fruit-indicator-style';
+                    style.textContent = `
+                        .enemy-fruit-indicator {
+                            position: absolute;
+                            pointer-events: none;
+                            width: 35px;
+                            height: 35px;
+                            border-radius: 50%;
+                            background-color: rgba(0, 0, 0, 0.7);
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            z-index: 100;
+                            box-shadow: 0 0 8px rgba(0, 0, 0, 0.8), 0 0 15px rgba(255, 255, 255, 0.3);
+                            border: 1.5px solid rgba(255, 255, 255, 0.4);
+                            padding: 3px;
+                        }
+                        
+                        .enemy-fruit-indicator img {
+                            width: 24px;
+                            height: 24px;
+                            object-fit: contain;
+                            filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+                        }
+                        
+                        .fruit-type-label {
+                            position: absolute;
+                            bottom: -18px;
+                            background-color: rgba(0, 0, 0, 0.7);
+                            color: white;
+                            font-size: 10px;
+                            padding: 2px 5px;
+                            border-radius: 3px;
+                            text-transform: capitalize;
+                            white-space: nowrap;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                // Add to update list to position correctly
+                if (!this.enemyIndicators) {
+                    this.enemyIndicators = [];
+                }
+                this.enemyIndicators.push({
+                    enemy: enemy,
+                    element: fruitIndicator
+                });
+            }
+            
             this.enemies.push(enemy);
         }
         
@@ -804,6 +873,79 @@ export class GameplayState extends BaseState {
                 }
             }, 3000);
         }
+        
+        // Display boss fruit powers
+        if (this.boss.fruits && this.boss.fruits.length > 0) {
+            this._createBossFruitIndicators();
+        }
+    }
+    
+    /**
+     * Create UI indicators for boss fruits
+     */
+    _createBossFruitIndicators() {
+        // Create container for boss fruits
+        const bossFruitContainer = document.createElement('div');
+        bossFruitContainer.className = 'boss-fruit-container';
+        this.uiContainer.appendChild(bossFruitContainer);
+        
+        // Add fruits
+        this.boss.fruits.forEach((fruit, index) => {
+            const fruitIcon = document.createElement('div');
+            fruitIcon.className = 'boss-fruit-icon';
+            fruitIcon.innerHTML = `
+                <img src="models/fruits/${fruit.type.charAt(0).toUpperCase() + fruit.type.slice(1)}Fruit.png" 
+                     alt="${fruit.type}">
+                <span class="boss-fruit-type">${fruit.type}</span>
+            `;
+            bossFruitContainer.appendChild(fruitIcon);
+        });
+        
+        // Add styling
+        if (!document.getElementById('boss-fruit-style')) {
+            const style = document.createElement('style');
+            style.id = 'boss-fruit-style';
+            style.textContent = `
+                .boss-fruit-container {
+                    position: absolute;
+                    top: 20px;
+                    right: 50%;
+                    transform: translateX(50%);
+                    display: flex;
+                    gap: 15px;
+                    background-color: rgba(0, 0, 0, 0.7);
+                    padding: 10px 15px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(255, 0, 0, 0.3);
+                    z-index: 100;
+                }
+                
+                .boss-fruit-icon {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .boss-fruit-icon img {
+                    width: 40px;
+                    height: 40px;
+                    object-fit: contain;
+                    filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.5));
+                }
+                
+                .boss-fruit-type {
+                    color: white;
+                    text-transform: capitalize;
+                    font-size: 12px;
+                    margin-top: 5px;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Store reference to remove later
+        this.bossFruitContainer = bossFruitContainer;
     }
 
     /**
@@ -835,6 +977,9 @@ export class GameplayState extends BaseState {
             }
         }
         
+        // Update enemy fruit indicators if they exist
+        this._updateEnemyIndicators();
+        
         // Check if all enemies are defeated and boss should spawn
         if (!this.bossCreated && this.enemies.length === 0) {
             this.createBoss();
@@ -861,6 +1006,61 @@ export class GameplayState extends BaseState {
         for (let i = 1; i <= 5; i++) {
             if (this.engine.input.isKeyPressed(`Digit${i}`) || this.engine.input.isKeyPressed(`Numpad${i}`)) {
                 this.selectFruit(i - 1);
+            }
+        }
+    }
+    
+    /**
+     * Update the positions of enemy fruit indicators
+     */
+    _updateEnemyIndicators() {
+        if (!this.enemyIndicators || !this.engine.renderer.camera) return;
+        
+        const camera = this.engine.renderer.camera;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        
+        // Update each indicator position
+        for (let i = this.enemyIndicators.length - 1; i >= 0; i--) {
+            const item = this.enemyIndicators[i];
+            const enemy = item.enemy;
+            const element = item.element;
+            
+            // If enemy is no longer active, remove the indicator
+            if (!enemy || !enemy.isActive) {
+                if (element && element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
+                this.enemyIndicators.splice(i, 1);
+                continue;
+            }
+            
+            // Get enemy position
+            const position = enemy.getPosition();
+            if (!position) continue;
+            
+            // Create vector for position - offset slightly up and to the right of the enemy
+            const pos = new THREE.Vector3(
+                position.x + 1.2, // Offset to the right
+                position.y + 4.0, // Offset higher
+                position.z + 0.3  // Slight offset forward
+            );
+            
+            // Project position to screen coordinates
+            pos.project(camera);
+            
+            // Convert to screen coordinates
+            const x = (pos.x * 0.5 + 0.5) * width;
+            const y = (-(pos.y * 0.5) + 0.5) * height;
+            
+            // Check if in front of camera (z < 1)
+            if (pos.z < 1) {
+                // Position indicator
+                element.style.transform = `translate(${x - 15}px, ${y - 15}px)`;
+                element.style.display = 'flex';
+            } else {
+                // Hide if behind camera
+                element.style.display = 'none';
             }
         }
     }
@@ -1000,6 +1200,22 @@ export class GameplayState extends BaseState {
         if (this.boss) {
             this.boss.destroy();
             this.boss = null;
+        }
+        
+        // Clean up enemy fruit indicators
+        if (this.enemyIndicators) {
+            this.enemyIndicators.forEach(item => {
+                if (item.element && item.element.parentNode) {
+                    item.element.parentNode.removeChild(item.element);
+                }
+            });
+            this.enemyIndicators = [];
+        }
+        
+        // Clean up boss fruit container
+        if (this.bossFruitContainer && this.bossFruitContainer.parentNode) {
+            this.bossFruitContainer.parentNode.removeChild(this.bossFruitContainer);
+            this.bossFruitContainer = null;
         }
         
         // Clean up all effects

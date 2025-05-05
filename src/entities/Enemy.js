@@ -3,6 +3,7 @@
  */
 import { Entity } from './Entity.js';
 import * as THREE from 'three';
+import fruitStore from '../lib/FruitStore.js';
 
 export class Enemy extends Entity {
     constructor(engine, options = {}) {
@@ -31,9 +32,9 @@ export class Enemy extends Entity {
         this.attackCooldown = 0;
         this.attackCooldownTime = 2; // seconds
         
-        // Player proximity timer for delayed attacks
+        // Player proximity timer for delayed attacks - not used anymore since we attack immediately
         this.playerProximityTimer = 0;
-        this.attackDelay = 2; // 2 seconds before attacking after player enters range
+        this.attackDelay = 0; // Set to 0 to attack immediately when in range
         this.playerInRange = false;
         
         // Attack range visualization
@@ -42,8 +43,34 @@ export class Enemy extends Entity {
         // Health bar
         this.healthBar = null;
         
+        // Assign a random fruit to the enemy
+        this._assignRandomFruit();
+        
         // Initialize enemy
         this._init();
+    }
+    
+    /**
+     * Assign a random fruit to the enemy
+     */
+    _assignRandomFruit() {
+        const fruitTypes = ['flame', 'ice', 'bomb', 'light', 'magma', 'dark', 'gas'];
+        const randomType = fruitTypes[Math.floor(Math.random() * fruitTypes.length)];
+        
+        // Create a random name for the fruit
+        const fruitName = `${randomType.charAt(0).toUpperCase() + randomType.slice(1)} Fruit`;
+        
+        this.fruit = {
+            name: fruitName,
+            type: randomType,
+            power: 5 + Math.floor(Math.random() * 10), // Random power between 5-15
+            attacks: ['Basic Attack', 'Special Attack']
+        };
+        
+        // Register fruit with the fruitStore if it's not already there
+        if (!fruitStore.getFruit(fruitName)) {
+            fruitStore.addFruit(this.fruit);
+        }
     }
     
     /**
@@ -252,24 +279,13 @@ export class Enemy extends Entity {
             }
         }
         
-        // Update player proximity timer if player is in range
-        if (this.playerInRange) {
-            this.playerProximityTimer += deltaTime;
-            
-            // If timer exceeds delay and we're close enough to attack, switch to attack state
-            if (this.playerProximityTimer >= this.attackDelay && this.currentState !== 'attack') {
-                this.currentState = 'attack';
-                console.log(`${this.name} is attacking player after waiting ${this.playerProximityTimer.toFixed(2)}s!`);
-                this._performAttack();
-            }
-        } else {
-            // Reset timer if player is not in range
-            this.playerProximityTimer = 0;
-            
-            // If we were attacking, go back to chase or idle
-            if (this.currentState === 'attack') {
-                this.currentState = 'chase';
-            }
+        // If player is in range and we're not already attacking, switch to attack state
+        if (this.playerInRange && this.currentState !== 'attack' && this.attackCooldown <= 0) {
+            this.currentState = 'attack';
+            this._performAttack();
+        } else if (!this.playerInRange && this.currentState === 'attack') {
+            // If player leaves range while we're attacking, go back to chase
+            this.currentState = 'chase';
         }
     }
     
@@ -297,27 +313,6 @@ export class Enemy extends Entity {
         const wasInRange = this.playerInRange;
         this.playerInRange = (distance <= this.attackRange);
         
-        // Update proximity timer if player is in range
-        if (this.playerInRange) {
-            // Don't increase timer if player is solving math
-            if (!player.mathChallengeActive) {
-                this.playerProximityTimer += 1/60; // Approximately one frame at 60fps
-            }
-            
-            // Change to attack state if close enough and timer exceeded
-            if (this.playerProximityTimer >= this.attackDelay && this.currentState !== 'attack') {
-                this.currentState = 'attack';
-            }
-        } else {
-            // Reset timer if player leaves range
-            this.playerProximityTimer = 0;
-            
-            // Change state back to chase if currently attacking
-            if (this.currentState === 'attack') {
-                this.currentState = 'chase';
-            }
-        }
-        
         // If player is nearby but not in range, chase them
         if (!this.playerInRange && distance < 10 && this.currentState !== 'chase') {
             this.currentState = 'chase';
@@ -327,7 +322,7 @@ export class Enemy extends Entity {
         if (this.playerInRange && !wasInRange) {
             console.log(`Player entered ${this.name}'s attack range`);
         } else if (!this.playerInRange && wasInRange) {
-            console.log(`Player left ${this.name}'s attack range - resetting timer`);
+            console.log(`Player left ${this.name}'s attack range`);
         }
     }
     
@@ -579,11 +574,11 @@ export class Enemy extends Entity {
         const gameState = this.engine.stateManager.getCurrentState();
         if (!gameState || !gameState.player) return;
         
-        // Check if player has been in range for at least 2 seconds
-        if (this.playerProximityTimer >= this.attackDelay) {
-            console.log(`${this.name} is dealing damage after ${this.playerProximityTimer.toFixed(2)}s of proximity!`);
-            
-            // Deal damage to player
+        // Check if we have a fruit to attack with
+        if (this.fruit) {
+            this._shootFruit(gameState.player.getPosition());
+        } else {
+            // Deal damage to player with regular attack
             gameState.player.takeDamage(this.attackPower);
             
             // Create attack effect
@@ -591,12 +586,277 @@ export class Enemy extends Entity {
             if (playerPos) {
                 this._createAttackEffect(playerPos);
             }
-        } else {
-            console.log(`${this.name} attempted attack but player hasn't been in range long enough (${this.playerProximityTimer.toFixed(2)}s)`);
         }
         
         // Set attack cooldown
         this.attackCooldown = this.attackCooldownTime;
+    }
+    
+    /**
+     * Shoot a fruit projectile at the player
+     */
+    _shootFruit(targetPos) {
+        if (!targetPos || !this.fruit) return;
+        
+        const enemyPos = this.getPosition();
+        if (!enemyPos) return;
+        
+        // Get fruit data from store
+        const fruitData = fruitStore.getFruit(this.fruit.name);
+        if (!fruitData) return;
+        
+        // Use the attack via fruitStore
+        const attackName = 'Basic Attack';
+        const success = fruitStore.useAttack(this.fruit.name, attackName);
+        
+        if (!success) {
+            // If couldn't use fruit power (e.g. on cooldown), do a regular attack
+            console.log(`${this.name} couldn't use fruit power, using regular attack`);
+            const gameState = this.engine.stateManager.getCurrentState();
+            if (gameState && gameState.player) {
+                gameState.player.takeDamage(this.attackPower);
+                this._createAttackEffect(targetPos);
+            }
+            return;
+        }
+        
+        // Create fruit projectile
+        const fruitColor = this._getFruitColor(this.fruit.type);
+        const geometry = new THREE.SphereGeometry(0.3, 8, 8);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: fruitColor,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const fruitProjectile = new THREE.Mesh(geometry, material);
+        fruitProjectile.position.set(enemyPos.x, enemyPos.y + 1, enemyPos.z);
+        
+        // Add to scene
+        this.engine.renderer.scene.add(fruitProjectile);
+        
+        // Calculate direction to player
+        const direction = new THREE.Vector3(
+            targetPos.x - enemyPos.x,
+            (targetPos.y + 1) - (enemyPos.y + 1),
+            targetPos.z - enemyPos.z
+        ).normalize();
+        
+        // Animation variables
+        const startTime = Date.now();
+        const duration = 1000; // ms
+        const speed = 10; // units per second
+        const damage = fruitData.damageValues[attackName];
+        
+        // Add trail effect
+        this._createFruitTrail(fruitProjectile, fruitColor);
+        
+        // Animate projectile
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
+            
+            // Move projectile
+            fruitProjectile.position.x += direction.x * speed * (this.engine.time.deltaTime || 0.016);
+            fruitProjectile.position.y += direction.y * speed * (this.engine.time.deltaTime || 0.016);
+            fruitProjectile.position.z += direction.z * speed * (this.engine.time.deltaTime || 0.016);
+            
+            // Check if projectile reached target
+            const gameState = this.engine.stateManager.getCurrentState();
+            if (gameState && gameState.player) {
+                const playerPos = gameState.player.getPosition();
+                if (playerPos) {
+                    const distanceToPlayer = Math.sqrt(
+                        Math.pow(fruitProjectile.position.x - playerPos.x, 2) +
+                        Math.pow(fruitProjectile.position.z - playerPos.z, 2)
+                    );
+                    
+                    // If hit player or time elapsed
+                    if (distanceToPlayer < 1 || progress >= 1) {
+                        // Deal damage only if we hit the player
+                        if (distanceToPlayer < 1) {
+                            gameState.player.takeDamage(damage, this.fruit.type);
+                            this._createHitEffect(playerPos, this.fruit.type);
+                        }
+                        
+                        // Remove projectile
+                        this.engine.renderer.scene.remove(fruitProjectile);
+                        fruitProjectile.geometry.dispose();
+                        fruitProjectile.material.dispose();
+                        return;
+                    }
+                }
+            }
+            
+            // Continue animation if not hit
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Remove projectile when animation is complete
+                this.engine.renderer.scene.remove(fruitProjectile);
+                fruitProjectile.geometry.dispose();
+                fruitProjectile.material.dispose();
+            }
+        };
+        
+        // Start animation
+        animate();
+    }
+    
+    /**
+     * Create a trail effect for the fruit projectile
+     */
+    _createFruitTrail(projectile, color) {
+        // Setup trail particles
+        const createTrailParticle = () => {
+            if (!projectile || !this.engine.renderer.scene) return;
+            
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 6, 6),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.7
+                })
+            );
+            
+            // Position at current projectile position
+            particle.position.copy(projectile.position);
+            
+            // Add to scene
+            this.engine.renderer.scene.add(particle);
+            
+            // Animate fade out
+            const startTime = Date.now();
+            const duration = 500; // ms
+            
+            const animateParticle = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                particle.material.opacity = 0.7 * (1 - progress);
+                particle.scale.multiplyScalar(0.98);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateParticle);
+                } else {
+                    this.engine.renderer.scene.remove(particle);
+                    particle.geometry.dispose();
+                    particle.material.dispose();
+                }
+            };
+            
+            animateParticle();
+        };
+        
+        // Create particles every 100ms
+        const trailInterval = setInterval(() => {
+            if (!projectile.parent) {
+                clearInterval(trailInterval);
+                return;
+            }
+            createTrailParticle();
+        }, 100);
+        
+        // Clear interval after 2 seconds (safety)
+        setTimeout(() => clearInterval(trailInterval), 2000);
+    }
+    
+    /**
+     * Create a hit effect when fruit projectile hits player
+     */
+    _createHitEffect(position, fruitType) {
+        const color = this._getFruitColor(fruitType);
+        
+        // Create explosion effect
+        const particles = [];
+        const particleCount = 15;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 6, 6),
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.8
+                })
+            );
+            
+            // Random position around hit point
+            particle.position.set(
+                position.x + (Math.random() - 0.5) * 0.2,
+                position.y + 1 + (Math.random() - 0.5) * 0.2,
+                position.z + (Math.random() - 0.5) * 0.2
+            );
+            
+            // Random velocity
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.05 + Math.random() * 0.1;
+            particle.userData = {
+                velocity: {
+                    x: Math.cos(angle) * speed,
+                    y: 0.05 + Math.random() * 0.1,
+                    z: Math.sin(angle) * speed
+                }
+            };
+            
+            // Add to scene
+            this.engine.renderer.scene.add(particle);
+            particles.push(particle);
+        }
+        
+        // Animate particles
+        const startTime = Date.now();
+        const duration = 800; // ms
+        
+        const animateParticles = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            particles.forEach(particle => {
+                // Move particle
+                particle.position.x += particle.userData.velocity.x;
+                particle.position.y += particle.userData.velocity.y;
+                particle.position.z += particle.userData.velocity.z;
+                
+                // Apply gravity
+                particle.userData.velocity.y -= 0.003;
+                
+                // Fade out
+                particle.material.opacity = 0.8 * (1 - progress);
+            });
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateParticles);
+            } else {
+                // Remove particles
+                particles.forEach(particle => {
+                    this.engine.renderer.scene.remove(particle);
+                    particle.geometry.dispose();
+                    particle.material.dispose();
+                });
+            }
+        };
+        
+        animateParticles();
+    }
+    
+    /**
+     * Get color based on fruit type
+     */
+    _getFruitColor(type) {
+        const colors = {
+            flame: 0xff5500,
+            ice: 0x00aaff,
+            bomb: 0x555555,
+            light: 0xffffaa,
+            magma: 0xff3300,
+            dark: 0x222222,
+            gas: 0xccffee,
+            default: 0xaaaaaa
+        };
+        
+        return colors[type] || colors.default;
     }
     
     /**
